@@ -55,3 +55,32 @@ def test_hr_to_candidate_shortlisting_pipeline():
     assert res.status_code == 200
     data = res.json()
     assert data.get("application", {}).get("status") == "shortlisted"
+
+def test_resume_analyzer_and_report_generator():
+    """
+    Verify that candidate and HR can retrieve comprehensive AI Resume Audit Reports
+    including ATS scores, skill taxonomy, strengths, weaknesses, and platform job fit matrix.
+    """
+    # 1. Candidate report
+    cand_token = create_access_token("b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22", "rahul.sharma@email.com", "candidate", "Rahul Sharma")
+    cand_headers = {"Authorization": f"Bearer {cand_token}"}
+    
+    res_cand = client.get("/api/candidate/resume-report", headers=cand_headers)
+    assert res_cand.status_code == 200
+    cand_report = res_cand.json()
+    assert "ats_health_score" in cand_report
+    assert "skill_taxonomy" in cand_report
+    assert "strengths" in cand_report
+    assert "weaknesses" in cand_report
+    assert "job_matrix" in cand_report
+
+    # 2. HR candidate report
+    hr_token = create_access_token("a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11", "hr@techcorp.com", "hr", "Sarah Jenkins")
+    hr_headers = {"Authorization": f"Bearer {hr_token}"}
+    
+    cand_id = "11111111-1111-1111-1111-111111111111"
+    res_hr = client.get(f"/api/hr/candidates/{cand_id}/report", headers=hr_headers)
+    assert res_hr.status_code == 200
+    hr_report = res_hr.json()
+    assert hr_report["candidate_name"] == "Rahul Sharma"
+    assert hr_report["ats_health_score"] >= 40

@@ -121,5 +121,14 @@ export const CandidateAPI = {
     });
     if (!res.ok) throw new Error('Failed to load applications');
     return res.json();
+  },
+
+  // Resume Analysis & Audit Report
+  async getResumeReport() {
+    const res = await fetch(`${API_BASE}/api/candidate/resume-report`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to load resume audit report');
+    return res.json();
   }
 };

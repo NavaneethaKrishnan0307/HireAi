@@ -195,5 +195,14 @@ export const HRAPI = {
     });
     if (!res.ok) throw new Error('Failed to update candidate status');
     return res.json();
+  },
+
+  // Deep AI Resume Audit Report for HR
+  async getCandidateReport(candidateId) {
+    const res = await fetch(`${API_BASE}/api/hr/candidates/${candidateId}/report`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to load candidate resume report');
+    return res.json();
   }
 };

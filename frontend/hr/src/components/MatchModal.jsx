@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { X, CheckCircle, XCircle, Sparkles, Award, GraduationCap, Clock, FileText, User, Lightbulb } from 'lucide-react';
 import { HRAPI } from '../services/api';
+import ResumeReportModal from './ResumeReportModal';
 
 export default function MatchModal({ candidate, jobId, onClose, onStatusChange }) {
+  const [showReport, setShowReport] = useState(false);
   if (!candidate) return null;
 
   const match = candidate.match_details || {};
@@ -165,34 +167,64 @@ export default function MatchModal({ candidate, jobId, onClose, onStatusChange }
         )}
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)' }}>
-          <button 
-            type="button" 
-            onClick={() => handleStatusUpdate('rejected')}
-            style={{ 
-              backgroundColor: '#fee2e2', 
-              color: '#dc2626', 
-              border: 'none', 
-              padding: '10px 20px', 
-              borderRadius: '8px', 
-              fontWeight: '700', 
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setShowReport(true)}
+            style={{
+              backgroundColor: '#f1f5f9',
+              color: '#0f172a',
+              border: '1px solid #cbd5e1',
+              padding: '10px 16px',
+              borderRadius: '8px',
+              fontWeight: '700',
               fontSize: '13px',
-              cursor: 'pointer' 
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px'
             }}
           >
-            Reject Candidate
+            <Sparkles size={15} color="#2563eb" /> View Full AI Resume Report
           </button>
-          
-          <button 
-            type="button" 
-            onClick={() => handleStatusUpdate('shortlisted')}
-            className="find-candidates-btn"
-            style={{ padding: '10px 24px', fontSize: '13px' }}
-          >
-            Shortlist Candidate
-          </button>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              type="button" 
+              onClick={() => handleStatusUpdate('rejected')}
+              style={{ 
+                backgroundColor: '#fee2e2', 
+                color: '#dc2626', 
+                border: 'none', 
+                padding: '10px 18px', 
+                borderRadius: '8px', 
+                fontWeight: '700', 
+                fontSize: '13px',
+                cursor: 'pointer' 
+              }}
+            >
+              Reject
+            </button>
+            
+            <button 
+              type="button" 
+              onClick={() => handleStatusUpdate('shortlisted')}
+              className="find-candidates-btn"
+              style={{ padding: '10px 20px', fontSize: '13px' }}
+            >
+              Shortlist Candidate
+            </button>
+          </div>
         </div>
       </div>
+
+      {showReport && (
+        <ResumeReportModal 
+          candidateId={candidate.id || candidate.user_id}
+          candidateName={candidate.full_name}
+          onClose={() => setShowReport(false)}
+        />
+      )}
     </div>
   );
 }

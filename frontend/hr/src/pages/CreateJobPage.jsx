@@ -9,6 +9,7 @@ export default function CreateJobPage() {
   const [formData, setFormData] = useState({
     title: '',
     company: 'TechCorp Solutions',
+    department: 'Engineering',
     location: 'Bangalore',
     min_experience: 3.0,
     max_experience: 6.0,
@@ -40,8 +41,8 @@ export default function CreateJobPage() {
         certifications_preferred: certs
       });
 
-      alert('Job opening published successfully! Candidates can now be ranked against this position.');
-      navigate('/manage-jobs');
+      alert('Job opening published successfully! Position is now active and accessible to all matching candidates.');
+      navigate('/matches');
     } catch (err) {
       alert(err.message || 'Failed to create job');
     } finally {
@@ -78,6 +79,23 @@ export default function CreateJobPage() {
                 onChange={(e) => setFormData({ ...formData, company: e.target.value })} 
                 required 
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Job Domain / Department</label>
+              <select 
+                className="form-input" 
+                value={formData.department} 
+                onChange={(e) => setFormData({ ...formData, department: e.target.value })}
+              >
+                <option value="Engineering">Engineering & Software</option>
+                <option value="AI & Machine Learning">AI & Machine Learning</option>
+                <option value="Cloud & DevOps">Cloud & DevOps</option>
+                <option value="Data & Analytics">Data & Analytics</option>
+                <option value="Product & Design">Product & Design</option>
+                <option value="Cybersecurity">Cybersecurity & SecOps</option>
+                <option value="Quality Assurance">Quality Assurance (QA)</option>
+              </select>
             </div>
 
             <div className="form-group">

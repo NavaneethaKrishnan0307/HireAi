@@ -418,3 +418,29 @@ def update_candidate_status_by_id(
         "message": f"Candidate status updated to {req.status}",
         "application": updated_app
     }
+
+
+@router.get("/candidates/{candidate_id}/report")
+def get_hr_candidate_report(candidate_id: str, user: Dict[str, Any] = Depends(require_hr)):
+    """
+    Generate deep AI resume audit report and multi-company platform fit matrix for HR.
+    """
+    supabase = get_supabase()
+    cand_res = supabase.table("candidates").select("*").eq("id", candidate_id).execute()
+    if not cand_res.data:
+        # Check by user_id
+        cand_res = supabase.table("candidates").select("*").eq("user_id", candidate_id).execute()
+    
+    if not cand_res.data:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+    
+    cand = cand_res.data[0]
+    users_res = supabase.table("users").select("*").execute()
+    users_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
+    
+    enriched = _enrich_candidate(cand, users_map)
+    jobs_res = supabase.table("jobs").select("*").eq("status", "active").execute()
+    active_jobs = jobs_res.data or []
+
+    report = CandidateRanker.generate_resume_audit_report(enriched, active_jobs)
+    return report

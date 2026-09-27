@@ -7,6 +7,7 @@ import MyProfilePage from './pages/MyProfilePage';
 import MyUploadsPage from './pages/MyUploadsPage';
 import AvailableJobsPage from './pages/AvailableJobsPage';
 import MyApplicationsPage from './pages/MyApplicationsPage';
+import ResumeAnalyzerPage from './pages/ResumeAnalyzerPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { CandidateAPI } from './services/api';
@@ -51,6 +52,18 @@ export default function App() {
           </ProtectedLayout>
         } />
         
+        <Route path="/analyzer" element={
+          <ProtectedLayout>
+            <ResumeAnalyzerPage />
+          </ProtectedLayout>
+        } />
+
+        <Route path="/report" element={
+          <ProtectedLayout>
+            <ResumeAnalyzerPage />
+          </ProtectedLayout>
+        } />
+
         <Route path="/uploads" element={
           <ProtectedLayout>
             <MyUploadsPage />

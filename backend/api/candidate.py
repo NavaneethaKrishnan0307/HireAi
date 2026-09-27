@@ -304,3 +304,30 @@ def get_my_applications(user: Dict[str, Any] = Depends(require_candidate)):
         })
 
     return results
+
+
+@router.get("/resume-report")
+def get_candidate_resume_report(user: Dict[str, Any] = Depends(require_candidate)):
+    """
+    Generate comprehensive candidate AI resume audit report and multi-company job fit matrix.
+    """
+    supabase = get_supabase()
+    user_id = user["sub"]
+    
+    cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
+    cand_data = cand_res.data[0] if cand_res.data else {}
+    
+    user_res = supabase.table("users").select("full_name, email").eq("id", user_id).execute()
+    if user_res.data and len(user_res.data) > 0:
+        cand_data["full_name"] = user_res.data[0].get("full_name") or user.get("full_name", "Candidate")
+        cand_data["email"] = user_res.data[0].get("email") or user.get("email", "")
+    else:
+        cand_data["full_name"] = user.get("full_name", "Candidate")
+        cand_data["email"] = user.get("email", "")
+
+    # Fetch active open opportunities across the platform
+    jobs_res = supabase.table("jobs").select("*").eq("status", "active").execute()
+    active_jobs = jobs_res.data or []
+
+    report = CandidateRanker.generate_resume_audit_report(cand_data, active_jobs)
+    return report

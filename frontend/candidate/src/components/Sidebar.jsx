@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, User, FileText, Briefcase, CheckCircle2, LogOut } from 'lucide-react';
+import { Home, User, FileText, Briefcase, CheckCircle2, LogOut, Sparkles } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
 
 export default function Sidebar() {
@@ -26,6 +26,14 @@ export default function Sidebar() {
         >
           <User size={18} />
           <span>My Profile</span>
+        </NavLink>
+
+        <NavLink
+          to="/analyzer"
+          className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+        >
+          <Sparkles size={18} color="#2563eb" />
+          <span>Resume Analyzer & Report</span>
         </NavLink>
 
         <NavLink
