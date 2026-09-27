@@ -18,6 +18,31 @@ def _get_hr_profile(user_id: str, supabase) -> Dict[str, Any]:
     return {"id": "f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01", "company_name": "TechCorp Solutions"}
 
 
+def _enrich_candidate(cand: Dict[str, Any], user_map: Dict[str, Any]) -> Dict[str, Any]:
+    c = dict(cand)
+    user_id = str(c.get("user_id") or "")
+    cand_id = str(c.get("id") or "")
+    
+    u_info = user_map.get(user_id) or user_map.get(cand_id) or {}
+    
+    name = (
+        u_info.get("full_name")
+        or c.get("full_name")
+        or c.get("name")
+        or (c.get("parsed_data", {}).get("name") if isinstance(c.get("parsed_data"), dict) else None)
+        or (u_info.get("email", "").split("@")[0].capitalize() if u_info.get("email") else None)
+        or (c.get("email", "").split("@")[0].capitalize() if c.get("email") else None)
+        or "Candidate"
+    )
+    email = u_info.get("email") or c.get("email") or ""
+    avatar = u_info.get("avatar_url") or c.get("avatar_url") or "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+    
+    c["full_name"] = name
+    c["email"] = email
+    c["avatar_url"] = avatar
+    return c
+
+
 @router.get("/dashboard")
 def get_dashboard(user: Dict[str, Any] = Depends(require_hr)):
     supabase = get_supabase()
@@ -33,7 +58,7 @@ def get_dashboard(user: Dict[str, Any] = Depends(require_hr)):
 
     # 3. Fetch Users for Candidate mapping
     users_res = supabase.table("users").select("*").execute()
-    user_map = {u["id"]: u for u in (users_res.data or [])}
+    user_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
 
     # 4. Fetch Applications
     apps_res = supabase.table("applications").select("*").execute()
@@ -42,14 +67,7 @@ def get_dashboard(user: Dict[str, Any] = Depends(require_hr)):
     shortlisted_count = sum(1 for a in applications if a.get("status") == "shortlisted")
 
     # 5. Populate candidate details
-    enriched_candidates = []
-    for cand in candidates:
-        u_info = user_map.get(cand.get("user_id"), {})
-        cand_copy = dict(cand)
-        cand_copy["full_name"] = u_info.get("full_name", "Candidate")
-        cand_copy["email"] = u_info.get("email", "")
-        cand_copy["avatar_url"] = u_info.get("avatar_url", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80")
-        enriched_candidates.append(cand_copy)
+    enriched_candidates = [_enrich_candidate(cand, user_map) for cand in candidates]
 
     # 6. Generate Top Candidate Matches for default job
     default_job = jobs[0] if jobs else {
@@ -83,15 +101,11 @@ def search_candidates(query: JobSearchQuery, user: Dict[str, Any] = Depends(requ
     candidates = cands_res.data or []
 
     users_res = supabase.table("users").select("*").execute()
-    user_map = {u["id"]: u for u in (users_res.data or [])}
+    user_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
 
     enriched = []
     for cand in candidates:
-        u_info = user_map.get(cand.get("user_id"), {})
-        c = dict(cand)
-        c["full_name"] = u_info.get("full_name", "Candidate")
-        c["email"] = u_info.get("email", "")
-        c["avatar_url"] = u_info.get("avatar_url", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80")
+        c = _enrich_candidate(cand, user_map)
         
         # Location filter if specified
         if query.location and query.location.strip():
@@ -241,18 +255,14 @@ def get_job_applicants(
     cands_map = {c["id"]: c for c in (cands_res.data or [])}
 
     users_res = supabase.table("users").select("*").execute()
-    users_map = {u["id"]: u for u in (users_res.data or [])}
+    users_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
 
     applicant_list = []
     for app in apps:
-        cid = app.get("candidate_id")
-        cand = cands_map.get(cid, {})
-        user_rec = users_map.get(cand.get("user_id"), {})
+        cid = str(app.get("candidate_id") or "")
+        cand = cands_map.get(cid) or next((c for c in (cands_res.data or []) if str(c.get("id")) == cid or str(c.get("user_id")) == cid), {})
         
-        cand_with_user = dict(cand)
-        cand_with_user["full_name"] = user_rec.get("full_name", "Candidate")
-        cand_with_user["email"] = user_rec.get("email", "")
-        cand_with_user["avatar_url"] = user_rec.get("avatar_url", "")
+        cand_with_user = _enrich_candidate(cand, users_map)
         cand_with_user["application_id"] = app.get("id")
         cand_with_user["job_id"] = job_id
         cand_with_user["application_status"] = app.get("status")
@@ -309,16 +319,9 @@ def get_all_candidates(user: Dict[str, Any] = Depends(require_hr)):
     candidates = cands_res.data or []
 
     users_res = supabase.table("users").select("*").execute()
-    users_map = {u["id"]: u for u in (users_res.data or [])}
+    users_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
 
-    results = []
-    for c in candidates:
-        u = users_map.get(c.get("user_id"), {})
-        item = dict(c)
-        item["full_name"] = u.get("full_name", "Candidate")
-        item["email"] = u.get("email", "")
-        item["avatar_url"] = u.get("avatar_url", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80")
-        results.append(item)
+    results = [_enrich_candidate(c, users_map) for c in candidates]
     return results
 
 
@@ -329,14 +332,10 @@ def get_candidate_details(candidate_id: str, user: Dict[str, Any] = Depends(requ
     if not cand_res.data:
         raise HTTPException(status_code=404, detail="Candidate not found")
     
-    cand = cand_res.data[0]
-    user_res = supabase.table("users").select("*").eq("id", cand.get("user_id")).execute()
-    u = user_res.data[0] if user_res.data else {}
+    users_res = supabase.table("users").select("*").execute()
+    users_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
 
-    cand["full_name"] = u.get("full_name", "")
-    cand["email"] = u.get("email", "")
-    cand["avatar_url"] = u.get("avatar_url", "")
-    return cand
+    return _enrich_candidate(cand_res.data[0], users_map)
 
 
 @router.post("/match/{application_id}")
