@@ -369,6 +369,7 @@ export default function CandidateMatchesPage() {
       {selectedCandidate && (
         <MatchModal 
           candidate={selectedCandidate} 
+          jobId={selectedJobId}
           onClose={() => setSelectedCandidate(null)}
           onStatusChange={(cid, status) => {
             setApplicants(prev => prev.map(a => a.id === cid ? { ...a, application_status: status } : a));

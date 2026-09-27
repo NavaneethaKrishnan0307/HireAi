@@ -1,12 +1,13 @@
 from typing import Dict, Any, List, Optional
 import io
 import csv
+import datetime
 from fastapi import APIRouter, HTTPException, Depends, Query, Response
 from backend.api.auth import require_hr
 from backend.utils.supabase_client import get_supabase
 from backend.services.candidate_ranker import CandidateRanker
 from backend.models.job import JobCreate, JobUpdate, JobSearchQuery
-from backend.models.application import ApplicationStatusUpdate
+from backend.models.application import ApplicationStatusUpdate, CandidateStatusUpdate
 
 router = APIRouter(prefix="/hr", tags=["HR"])
 
@@ -253,6 +254,7 @@ def get_job_applicants(
         cand_with_user["email"] = user_rec.get("email", "")
         cand_with_user["avatar_url"] = user_rec.get("avatar_url", "")
         cand_with_user["application_id"] = app.get("id")
+        cand_with_user["job_id"] = job_id
         cand_with_user["application_status"] = app.get("status")
         cand_with_user["applied_at"] = app.get("applied_at")
 
@@ -371,4 +373,49 @@ def update_application_status(
     return {
         "message": f"Application status updated to {req.status}",
         "application": res.data[0]
+    }
+
+
+@router.post("/candidates/{candidate_id}/status")
+def update_candidate_status_by_id(
+    candidate_id: str,
+    req: CandidateStatusUpdate,
+    user: Dict[str, Any] = Depends(require_hr)
+):
+    """
+    Direct Candidate Pipeline Link:
+    Allows HR to shortlist, review, or reject a candidate.
+    Creates or updates the application link directly in the database.
+    """
+    supabase = get_supabase()
+    
+    # 1. Resolve job_id
+    job_id = req.job_id
+    if not job_id:
+        jobs_res = supabase.table("jobs").select("*").eq("status", "active").execute()
+        if jobs_res.data and len(jobs_res.data) > 0:
+            job_id = jobs_res.data[0]["id"]
+        else:
+            raise HTTPException(status_code=400, detail="No active job found to attach candidate status to")
+    
+    # 2. Check if application already exists for this (candidate, job) pair
+    app_res = supabase.table("applications").select("*").eq("candidate_id", candidate_id).eq("job_id", job_id).execute()
+    
+    if app_res.data and len(app_res.data) > 0:
+        app_id = app_res.data[0]["id"]
+        res = supabase.table("applications").update({"status": req.status}).eq("id", app_id).execute()
+        updated_app = res.data[0] if res.data else app_res.data[0]
+    else:
+        new_app = {
+            "job_id": job_id,
+            "candidate_id": candidate_id,
+            "status": req.status,
+            "applied_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+        }
+        res = supabase.table("applications").insert(new_app).execute()
+        updated_app = res.data[0] if res.data else new_app
+        
+    return {
+        "message": f"Candidate status updated to {req.status}",
+        "application": updated_app
     }

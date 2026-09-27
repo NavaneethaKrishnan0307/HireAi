@@ -2,11 +2,12 @@ import React from 'react';
 import { X, CheckCircle, XCircle, Sparkles, Award, GraduationCap, Clock, FileText, User, Lightbulb } from 'lucide-react';
 import { HRAPI } from '../services/api';
 
-export default function MatchModal({ candidate, onClose, onStatusChange }) {
+export default function MatchModal({ candidate, jobId, onClose, onStatusChange }) {
   if (!candidate) return null;
 
   const match = candidate.match_details || {};
   const score = candidate.score || match.overall_score || 85;
+  const targetJobId = jobId || candidate.job_id || (candidate.application ? candidate.application.job_id : null);
   const explanations = match.explanations || [
     '✓ Core skill requirement satisfied',
     '✓ Experience criteria met',
@@ -16,18 +17,17 @@ export default function MatchModal({ candidate, onClose, onStatusChange }) {
   const weights = match.applied_weights || { skills: 0.50, experience: 0.25, education: 0.15, additional: 0.10 };
 
   const handleStatusUpdate = async (newStatus) => {
-    if (candidate.application_id) {
-      try {
+    try {
+      if (candidate.application_id) {
         await HRAPI.updateApplicationStatus(candidate.application_id, newStatus);
-        if (onStatusChange) onStatusChange(candidate.id, newStatus);
-        alert(`Candidate application status updated to: ${newStatus}`);
-        onClose();
-      } catch (err) {
-        alert(err.message || 'Failed to update status');
+      } else {
+        await HRAPI.updateCandidateStatus(candidate.id, targetJobId, newStatus);
       }
-    } else {
-      alert(`Candidate marked as ${newStatus}`);
+      if (onStatusChange) onStatusChange(candidate.id, newStatus);
+      alert(`Candidate status successfully updated to: ${newStatus.toUpperCase()}`);
       onClose();
+    } catch (err) {
+      alert(err.message || 'Failed to update status');
     }
   };
 

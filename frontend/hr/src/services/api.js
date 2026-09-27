@@ -182,5 +182,18 @@ export const HRAPI = {
     });
     if (!res.ok) throw new Error('Failed to update status');
     return res.json();
+  },
+
+  async updateCandidateStatus(candidateId, jobId, status) {
+    const res = await fetch(`${API_BASE}/api/hr/candidates/${candidateId}/status`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader()
+      },
+      body: JSON.stringify({ job_id: jobId, status })
+    });
+    if (!res.ok) throw new Error('Failed to update candidate status');
+    return res.json();
   }
 };

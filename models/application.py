@@ -7,6 +7,10 @@ class ApplicationCreate(BaseModel):
 class ApplicationStatusUpdate(BaseModel):
     status: str # 'applied', 'under_review', 'shortlisted', 'rejected', 'hired'
 
+class CandidateStatusUpdate(BaseModel):
+    status: str # 'applied', 'under_review', 'shortlisted', 'rejected', 'hired'
+    job_id: Optional[str] = None
+
 class MatchScoreBreakdown(BaseModel):
     overall_score: float
     skill_score: float
