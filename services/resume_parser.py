@@ -7,18 +7,26 @@ from docx import Document
 
 # Comprehensive curated skill dictionary for deterministic rule-based knowledge representation
 KNOWN_SKILLS = [
-    # Programming Languages
-    "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", "C", "Go", "Rust", "Ruby", "PHP", "Kotlin", "Swift", "Scala", "R", "Dart", "Solidity",
+    # Programming & Scripting Languages
+    "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", "C", "Go", "Rust", "Ruby", "PHP", "Kotlin", "Swift", "Scala", "R", "Dart", "Solidity", "Bash", "Shell Scripting", "PowerShell", "Assembly",
+    
+    # Cybersecurity, InfoSec & Networking
+    "Cybersecurity", "Network Security", "Information Security", "Ethical Hacking", "Penetration Testing", "SOC", "SIEM", "Firewall", "Vulnerability Assessment", "Wireshark", "Nmap", "Metasploit", "Splunk", "Incident Response", "Digital Forensics", "OWASP", "Burp Suite", "Kali Linux", "Cryptography", "TCP/IP", "DNS", "VPN", "CompTIA Security+", "CEH", "CISSP", "IAM", "Cloud Security", "Endpoint Security", "Malware Analysis", "IDS/IPS", "Network Analysis",
+
     # Frontend Technologies & Frameworks
     "FastAPI", "Django", "Flask", "React", "React.js", "Vue", "Vue.js", "Angular", "Node.js", "Express", "Spring", "Spring Boot",
     "Next.js", "Nuxt.js", "Svelte", "Redux", "TailwindCSS", "Bootstrap", "HTML", "CSS", "HTML/CSS", "GraphQL", "REST APIs", "gRPC", "Webpack", "Vite",
+    
     # Databases, Caching & Data Stores
     "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite", "Oracle", "Cassandra", "DynamoDB", "Elasticsearch", "Supabase", "Firebase", "Neo4j",
-    # Cloud, DevOps & Infrastructure
-    "AWS", "Azure", "GCP", "Google Cloud", "Docker", "Kubernetes", "Git", "GitHub", "GitLab", "CI/CD", "Terraform", "Linux",
+    
+    # Cloud, DevOps, OS & Infrastructure
+    "AWS", "Azure", "GCP", "Google Cloud", "Docker", "Kubernetes", "Git", "GitHub", "GitLab", "CI/CD", "Terraform", "Linux", "Ubuntu", "CentOS",
     "Jira", "Jenkins", "Kafka", "RabbitMQ", "Microservices", "Serverless", "Nginx", "Ansible",
+    
     # AI / Machine Learning / Data Science
-    "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Scikit-learn", "Pandas", "NumPy", "OpenCV", "NLP", "LLM",
+    "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Scikit-learn", "Pandas", "NumPy", "OpenCV", "NLP", "LLM", "Data Analysis",
+    
     # Testing & Mobile
     "PyTest", "Jest", "Cypress", "Selenium", "Flutter", "React Native", "Android", "iOS"
 ]
@@ -98,7 +106,7 @@ class ResumeParser:
     @classmethod
     def extract_phone(cls, text: str) -> Optional[str]:
         """Extract phone number using regex."""
-        phone_pattern = r'(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[6789]\d{9}|(?:\+?1\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4})'
+        phone_pattern = r'(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[6789]\d{9}|(?:\+?1\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*(?:[.-]\s*)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4})'
         match = re.search(phone_pattern, text)
         if match:
             clean = re.sub(r'[^\d+]', '', match.group(0))
@@ -140,14 +148,46 @@ class ResumeParser:
         """Extract education credentials using hierarchical pattern checks."""
         for pattern, edu_title in EDUCATION_PATTERNS:
             if re.search(pattern, text, re.IGNORECASE):
-                if re.search(r'Computer\s*Science|Information\s*Technology|ECE|CSE|IT|Mechanical|Electrical', text, re.IGNORECASE):
-                    return f"{edu_title} in Computer Science / IT"
+                if re.search(r'Computer\s*Science|Information\s*Technology|Cyber|Security|ECE|CSE|IT|Mechanical|Electrical', text, re.IGNORECASE):
+                    return f"{edu_title} in Computer Science / IT / Security"
                 return edu_title
         return "B.Tech / Graduate"
 
     @classmethod
+    def extract_current_title(cls, text: str) -> str:
+        """Accurately identify professional or student/intern role from resume text."""
+        t_lower = text.lower()
+        if "cyber" in t_lower or "security" in t_lower or "penetration" in t_lower or "soc" in t_lower:
+            if "intern" in t_lower or "student" in t_lower or "trainee" in t_lower:
+                return "Cybersecurity Intern"
+            return "Cybersecurity & InfoSec Analyst"
+        
+        if "intern" in t_lower or "student" in t_lower or "undergraduate" in t_lower or "fresher" in t_lower:
+            if "data" in t_lower or "ai" in t_lower or "ml" in t_lower:
+                return "Data Science & AI Intern"
+            if "web" in t_lower or "frontend" in t_lower or "react" in t_lower:
+                return "Web Development Intern"
+            return "Software Engineering Intern"
+
+        if "full stack" in t_lower or "fullstack" in t_lower:
+            return "Full Stack Developer"
+        if "devops" in t_lower or "cloud" in t_lower or "kubernetes" in t_lower or "terraform" in t_lower:
+            return "DevOps & Cloud Engineer"
+        if "data" in t_lower and ("machine learning" in t_lower or "ai" in t_lower):
+            return "AI / Machine Learning Engineer"
+        if "python" in t_lower or "django" in t_lower or "fastapi" in t_lower:
+            return "Backend Python Developer"
+        if "react" in t_lower or "frontend" in t_lower:
+            return "Frontend React Developer"
+        if "java" in t_lower or "spring" in t_lower:
+            return "Java Software Engineer"
+
+        return "Software Developer"
+
+    @classmethod
     def extract_experience_years(cls, text: str) -> float:
         """Rule-based heuristic extraction of work experience in years."""
+        t_lower = text.lower()
         exp_patterns = [
             r'(\d+(?:\.\d+)?)\+?\s*(?:years|yrs)(?:\s+of)?\s+experience',
             r'experience\s*:\s*(\d+(?:\.\d+)?)\+?\s*(?:years|yrs)',
@@ -170,10 +210,16 @@ class ResumeParser:
             if 0 <= (e - s) <= 15:
                 total_calculated += (e - s)
         
+        # Student / Intern check
+        if re.search(r'\b(student|intern|internship|trainee|undergraduate|fresher|pursuing)\b', t_lower):
+            if total_calculated > 0:
+                return round(min(total_calculated, 1.5), 1)
+            return 0.0
+
         if total_calculated > 0:
             return round(min(total_calculated, 20.0), 1)
 
-        return 1.5
+        return 0.0
 
     @classmethod
     def parse_bytes(cls, file_bytes: bytes, filename: str) -> Dict[str, Any]:
@@ -185,6 +231,7 @@ class ResumeParser:
         skills = cls.extract_skills(raw_text)
         education = cls.extract_education(raw_text)
         experience_years = cls.extract_experience_years(raw_text)
+        current_title = cls.extract_current_title(raw_text)
 
         return {
             "name": name,
@@ -193,6 +240,7 @@ class ResumeParser:
             "skills": skills,
             "education": education,
             "years_of_experience": experience_years,
+            "current_title": current_title,
             "extracted_text_preview": raw_text[:500] if raw_text else "",
             "filename": filename,
             "status": "processed"
@@ -208,6 +256,7 @@ class ResumeParser:
         skills = cls.extract_skills(raw_text)
         education = cls.extract_education(raw_text)
         experience_years = cls.extract_experience_years(raw_text)
+        current_title = cls.extract_current_title(raw_text)
 
         return {
             "name": name,
@@ -216,6 +265,7 @@ class ResumeParser:
             "skills": skills,
             "education": education,
             "years_of_experience": experience_years,
+            "current_title": current_title,
             "extracted_text_preview": raw_text[:500] if raw_text else "",
             "filename": file_path.name,
             "status": "processed"

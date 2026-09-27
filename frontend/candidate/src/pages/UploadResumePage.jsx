@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { 
   UploadCloud, 
   FileUp, 
@@ -14,22 +15,35 @@ import {
   User,
   Mail,
   Phone,
-  Save
+  Save,
+  Edit3,
+  Sparkles
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
 
 export default function UploadResumePage() {
-  const [profile, setProfile] = useState(null);
+  const getCachedProfile = () => {
+    try {
+      const cached = localStorage.getItem('candidate_profile_cache');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const cachedData = getCachedProfile();
+  const [profile, setProfile] = useState(cachedData);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
   const [error, setError] = useState(null);
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Candidate Details State (Auto-fetched & Editable)
-  const [candidateName, setCandidateName] = useState('');
-  const [candidateEmail, setCandidateEmail] = useState('');
-  const [candidatePhone, setCandidatePhone] = useState('');
+  // Candidate Details State (Instant LocalStorage Hydration + Auto-fetched & Editable)
+  const [candidateName, setCandidateName] = useState(cachedData?.full_name || '');
+  const [candidateEmail, setCandidateEmail] = useState(cachedData?.email || '');
+  const [candidatePhone, setCandidatePhone] = useState(cachedData?.phone || '');
+  const [candidateTitle, setCandidateTitle] = useState(cachedData?.current_title || '');
   const [savingDetails, setSavingDetails] = useState(false);
   const [detailsSavedMsg, setDetailsSavedMsg] = useState('');
 
@@ -40,14 +54,16 @@ export default function UploadResumePage() {
   const loadProfile = async () => {
     try {
       const p = await CandidateAPI.getProfile();
-      setProfile(p);
       if (p) {
-        setCandidateName(p.full_name || '');
-        setCandidateEmail(p.email || '');
-        setCandidatePhone(p.phone || '');
+        setProfile(p);
+        localStorage.setItem('candidate_profile_cache', JSON.stringify(p));
+        if (p.full_name) setCandidateName(p.full_name);
+        if (p.email) setCandidateEmail(p.email);
+        if (p.phone) setCandidatePhone(p.phone);
+        if (p.current_title) setCandidateTitle(p.current_title);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Profile fetch error:', err);
     }
   };
 
@@ -56,13 +72,20 @@ export default function UploadResumePage() {
     try {
       setSavingDetails(true);
       setError(null);
-      await CandidateAPI.updateProfile({
+      const updatePayload = {
         full_name: candidateName,
         email: candidateEmail,
-        phone: candidatePhone
-      });
-      setDetailsSavedMsg('Candidate details successfully updated!');
-      setTimeout(() => setDetailsSavedMsg(''), 3000);
+        phone: candidatePhone,
+        current_title: candidateTitle
+      };
+
+      // Instantly cache in localStorage so refresh never wipes typed inputs
+      const currentCache = getCachedProfile() || {};
+      localStorage.setItem('candidate_profile_cache', JSON.stringify({ ...currentCache, ...updatePayload }));
+
+      await CandidateAPI.updateProfile(updatePayload);
+      setDetailsSavedMsg('Profile details successfully saved and updated in system!');
+      setTimeout(() => setDetailsSavedMsg(''), 3500);
       await loadProfile();
     } catch (err) {
       setError(err.message || 'Failed to update candidate details');
@@ -109,10 +132,30 @@ export default function UploadResumePage() {
 
   return (
     <div className="content-area">
-      <h2 className="page-title">Upload Your Resume</h2>
-      <p className="page-subtitle">
-        Upload your resume in PDF or DOCX format and get matched with suitable job opportunities.
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
+        <div>
+          <h2 className="page-title" style={{ margin: 0 }}>Upload Your Resume</h2>
+          <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
+            Upload your resume in PDF or DOCX format and get matched with suitable job opportunities.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <Link 
+            to="/profile" 
+            className="choose-btn" 
+            style={{ margin: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#2563eb' }}
+          >
+            <Edit3 size={15} /> Modify Profile
+          </Link>
+          <Link 
+            to="/report" 
+            className="choose-btn" 
+            style={{ margin: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a' }}
+          >
+            <Sparkles size={15} /> View AI Report
+          </Link>
+        </div>
+      </div>
 
       {error && (
         <div style={{ backgroundColor: '#fef2f2', color: '#b91c1c', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
@@ -135,12 +178,17 @@ export default function UploadResumePage() {
         </div>
       )}
 
-      {/* Candidate Profile Details (Auto-fetched & Editable) */}
+      {/* Candidate Profile Details (Auto-fetched, Editable & Cached) */}
       <div className="card" style={{ marginBottom: '20px', padding: '20px' }}>
-        <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <User size={18} color="#2563eb" /> Candidate Information (Auto-Fetched & Editable)
-        </h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
+          <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <User size={18} color="#2563eb" /> Candidate Information (Auto-Fetched & Editable)
+          </h3>
+          <Link to="/profile" style={{ fontSize: '12px', fontWeight: '700', color: '#2563eb', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <Edit3 size={13} /> Edit Full Profile & Skills
+          </Link>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', alignItems: 'flex-end' }}>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '12px' }}>Full Name</label>
             <input 
@@ -169,6 +217,16 @@ export default function UploadResumePage() {
               value={candidatePhone} 
               onChange={(e) => setCandidatePhone(e.target.value)} 
               placeholder="+91 9876543210" 
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ fontSize: '12px' }}>Target Role / Title</label>
+            <input 
+              type="text" 
+              className="form-input" 
+              value={candidateTitle} 
+              onChange={(e) => setCandidateTitle(e.target.value)} 
+              placeholder="e.g. Cybersecurity Intern" 
             />
           </div>
           <button 
@@ -264,7 +322,19 @@ export default function UploadResumePage() {
 
       {/* Recent Uploads Section */}
       <section className="recent-uploads-section">
-        <h3 className="section-heading">Recent Uploads</h3>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 className="section-heading" style={{ margin: 0 }}>Recent Uploads</h3>
+          {hasResume && (
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <Link to="/profile" className="choose-btn" style={{ padding: '6px 12px', fontSize: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                <Edit3 size={13} /> Modify Profile
+              </Link>
+              <Link to="/report" className="choose-btn" style={{ padding: '6px 12px', fontSize: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#0f172a' }}>
+                <Sparkles size={13} /> View Report
+              </Link>
+            </div>
+          )}
+        </div>
         {hasResume ? (
           <div className="upload-file-card">
             <div className="file-info-group">

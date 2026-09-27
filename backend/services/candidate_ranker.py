@@ -186,81 +186,170 @@ class CandidateRanker:
     ) -> Dict[str, Any]:
         """
         Generate a comprehensive, enterprise-grade AI Resume Audit & Report.
-        Evaluates ATS compliance, skill taxonomy breakdown, experience maturity,
+        Evaluates ATS compliance, multi-domain skill taxonomy breakdown (Cybersecurity,
+        Languages, Frameworks, Cloud & DevOps, AI/Data), experience maturity,
         strengths, weaknesses, and cross-job fit matrix across the open platform.
         """
         skills = candidate_data.get("parsed_skills", []) or []
         experience = float(candidate_data.get("years_of_experience", 0.0) or 0.0)
         education = str(candidate_data.get("education", "") or "Undergraduate")
+        current_title = str(candidate_data.get("current_title", "") or "")
         phone = candidate_data.get("phone", "")
         email = candidate_data.get("email", "")
         full_name = candidate_data.get("full_name") or candidate_data.get("name") or "Candidate"
 
-        # 1. Categorized Skill Taxonomy
-        languages = [s for s in skills if s in ["Python", "Java", "JavaScript", "TypeScript", "C++", "C#", "C", "Go", "Rust", "Ruby", "PHP", "Kotlin", "Swift", "Scala", "R", "Dart"]]
-        frameworks = [s for s in skills if s in ["FastAPI", "Django", "Flask", "React", "React.js", "Vue", "Vue.js", "Angular", "Node.js", "Express", "Spring", "Spring Boot", "Next.js", "Nuxt.js", "Svelte", "Redux", "TailwindCSS", "Bootstrap", "HTML", "CSS"]]
-        databases_cloud = [s for s in skills if s in ["SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite", "Oracle", "Cassandra", "DynamoDB", "Elasticsearch", "Supabase", "Firebase", "AWS", "Azure", "GCP", "Google Cloud", "Docker", "Kubernetes", "Git", "GitHub", "GitLab", "CI/CD", "Terraform", "Linux"]]
-        other_skills = [s for s in skills if s not in languages and s not in frameworks and s not in databases_cloud]
+        # 1. Categorized Skill Taxonomy (Multi-Domain)
+        cyber_skills = [s for s in skills if s in [
+            "Cybersecurity", "Network Security", "Information Security", "Ethical Hacking", 
+            "Penetration Testing", "SOC", "SIEM", "Firewall", "Vulnerability Assessment", 
+            "Wireshark", "Nmap", "Metasploit", "Splunk", "Incident Response", "Digital Forensics", 
+            "OWASP", "Burp Suite", "Kali Linux", "Cryptography", "TCP/IP", "DNS", "VPN", 
+            "CompTIA Security+", "CEH", "CISSP", "IAM", "Cloud Security", "Endpoint Security", 
+            "Malware Analysis", "IDS/IPS", "Network Analysis"
+        ]]
+        
+        languages = [s for s in skills if s in [
+            "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", "C", "Go", "Rust", 
+            "Ruby", "PHP", "Kotlin", "Swift", "Scala", "R", "Dart", "Solidity", "Bash", 
+            "Shell Scripting", "PowerShell", "Assembly"
+        ]]
+        
+        frameworks = [s for s in skills if s in [
+            "FastAPI", "Django", "Flask", "React", "React.js", "Vue", "Vue.js", "Angular", 
+            "Node.js", "Express", "Spring", "Spring Boot", "Next.js", "Nuxt.js", "Svelte", 
+            "Redux", "TailwindCSS", "Bootstrap", "HTML", "CSS", "HTML/CSS", "GraphQL", 
+            "REST APIs", "gRPC", "Webpack", "Vite"
+        ]]
+        
+        databases_cloud = [s for s in skills if s in [
+            "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite", "Oracle", "Cassandra", 
+            "DynamoDB", "Elasticsearch", "Supabase", "Firebase", "Neo4j", "AWS", "Azure", "GCP", 
+            "Google Cloud", "Docker", "Kubernetes", "Git", "GitHub", "GitLab", "CI/CD", 
+            "Terraform", "Linux", "Ubuntu", "CentOS", "Jira", "Jenkins", "Kafka", "RabbitMQ", 
+            "Microservices", "Serverless", "Nginx", "Ansible"
+        ]]
+        
+        ai_data = [s for s in skills if s in [
+            "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Scikit-learn", 
+            "Pandas", "NumPy", "OpenCV", "NLP", "LLM", "Data Analysis"
+        ]]
+        
+        categorized_all = set(cyber_skills + languages + frameworks + databases_cloud + ai_data)
+        other_skills = [s for s in skills if s not in categorized_all]
+
+        # Check if candidate is a student / intern or cybersecurity profile
+        is_intern_or_student = (
+            "intern" in current_title.lower() or 
+            "student" in current_title.lower() or 
+            "trainee" in current_title.lower() or 
+            experience < 1.0
+        )
+        is_cyber = bool(cyber_skills) or "cyber" in current_title.lower() or "security" in current_title.lower()
 
         # 2. ATS & Overall Health Scoring Formula
-        ats_score = 40  # Base score for valid document parsing
+        ats_score = 45  # Base score for valid document parsing & structure
         if len(skills) >= 3:
             ats_score += 15
         if len(skills) >= 6:
             ats_score += 15
-        if experience >= 1.0:
-            ats_score += 10
-        if education and education != "Undergraduate":
-            ats_score += 10
-        if phone and len(phone) >= 10:
+        if len(skills) >= 10:
+            ats_score += 5
+            
+        if is_intern_or_student:
+            if education and education != "Undergraduate":
+                ats_score += 10
+            else:
+                ats_score += 5
+            if cyber_skills or languages or frameworks:
+                ats_score += 10
+        else:
+            if experience >= 1.0:
+                ats_score += 10
+            if education and education != "Undergraduate":
+                ats_score += 5
+
+        if phone and len(phone) >= 8:
             ats_score += 5
         if email and "@" in email:
             ats_score += 5
-        ats_score = min(100, max(30, ats_score))
+            
+        ats_score = min(100, max(35, ats_score))
 
         # 3. Seniority & Domain Classification
-        if experience >= 6.0:
-            seniority = "Senior / Lead Specialist"
+        if current_title:
+            seniority = current_title
+        elif is_cyber and is_intern_or_student:
+            seniority = "Cybersecurity Intern / Student"
+        elif is_cyber:
+            seniority = "Cybersecurity Analyst / Specialist"
+        elif is_intern_or_student:
+            seniority = "Intern / Entry-Level Student"
+        elif experience >= 6.0:
+            seniority = "Senior / Lead Engineer"
         elif experience >= 3.0:
             seniority = "Mid-Senior Professional"
-        elif experience >= 1.0:
-            seniority = "Associate / Junior Specialist"
         else:
-            seniority = "Entry Level / Graduate"
+            seniority = "Associate / Junior Developer"
 
         # 4. Strengths & Opportunities
         strengths = []
+        if cyber_skills:
+            top_cyber = cyber_skills[:4]
+            strengths.append(f"Dedicated InfoSec & Cybersecurity toolkit ({', '.join(top_cyber)})")
         if len(languages) >= 2:
-            strengths.append(f"Polyglot programming versatility ({', '.join(languages)})")
+            strengths.append(f"Polyglot programming versatility ({', '.join(languages[:3])})")
         elif languages:
             strengths.append(f"Solid foundation in core language: {languages[0]}")
         
         if frameworks:
-            strengths.append(f"Modern framework competency across {', '.join(frameworks[:3])}")
+            strengths.append(f"Modern framework competency ({', '.join(frameworks[:3])})")
         if databases_cloud:
-            strengths.append(f"Cloud, DevOps, and Data store readiness ({', '.join(databases_cloud[:3])})")
-        if experience >= 3.0:
+            strengths.append(f"Infrastructure, OS, and Data readiness ({', '.join(databases_cloud[:3])})")
+        if ai_data:
+            strengths.append(f"Data Science & AI capability ({', '.join(ai_data[:3])})")
+        if experience >= 2.0:
             strengths.append(f"Demonstrated production experience of {experience} years")
+        elif is_intern_or_student and (cyber_skills or skills):
+            strengths.append("Strong academic and practical project focus tailored for internship/entry roles")
 
         if not strengths:
             strengths.append("Foundational technical interest and transferable capabilities")
 
         weaknesses = []
-        if not databases_cloud:
-            weaknesses.append("Missing cloud/DevOps keywords (e.g. Docker, AWS, CI/CD) required by top employers")
-        if len(skills) < 5:
-            weaknesses.append("Skill density is low; expand your technical vocabulary with tools you have used")
-        if not frameworks:
-            weaknesses.append("No modern web/backend framework detected on resume")
-        if experience < 1.0:
-            weaknesses.append("Limited commercial experience listed; highlight personal projects and open-source contributions")
+        if is_cyber:
+            if not any(s in cyber_skills for s in ["SIEM", "SOC", "Splunk"]):
+                weaknesses.append("Missing enterprise SIEM/SOC monitoring keywords (e.g., Splunk, Elastic SIEM)")
+            if not any(s in cyber_skills for s in ["Wireshark", "Nmap", "TCP/IP"]):
+                weaknesses.append("Network protocol analysis tools (Wireshark, Nmap) should be explicitly highlighted")
+            if not databases_cloud and not any(s in skills for s in ["Linux", "Kali Linux"]):
+                weaknesses.append("Add Linux / Kali Linux system administration tools to your profile")
+        else:
+            if not databases_cloud:
+                weaknesses.append("Missing cloud/DevOps keywords (e.g. Docker, AWS, Git) required by top employers")
+            if not frameworks:
+                weaknesses.append("No modern application framework detected on resume")
+
+        if len(skills) < 4:
+            weaknesses.append("Skill density is low; expand your technical vocabulary with tools and protocols you know")
+        if not is_intern_or_student and experience < 1.0:
+            weaknesses.append("Limited commercial experience listed; highlight open-source contributions or live client projects")
+
+        if not weaknesses:
+            weaknesses.append("Continue maintaining updated project artifacts and latest security/dev tool versions")
 
         # 5. Actionable Roadmap
-        recommendations = [
-            "Quantify project achievements with measurable metrics (e.g. 'Improved query latency by 35%')",
-            "Add high-demand cloud technologies (Docker, AWS, Git) to improve ATS ranking for engineering roles",
-            "Ensure certifications and latest technical tools are prominently listed in a dedicated skills section"
-        ]
+        if is_cyber or is_intern_or_student:
+            recommendations = [
+                "Document hands-on lab environments, CTF write-ups (TryHackMe / HackTheBox), or GitHub security tools",
+                "Highlight industry standard certifications (e.g. CompTIA Security+, CEH, or AWS Cloud Practitioner)",
+                "Quantify vulnerability assessment and project outcomes (e.g., 'Audited 15+ network endpoints detecting 8 CVE vulnerabilities')"
+            ]
+        else:
+            recommendations = [
+                "Quantify project achievements with measurable metrics (e.g. 'Improved query latency by 35%')",
+                "Add high-demand cloud technologies (Docker, AWS, Git) to improve ATS ranking for engineering roles",
+                "Ensure certifications and latest technical tools are prominently listed in a dedicated skills section"
+            ]
 
         # 6. Job-Specific Fit Matrix across Open Platform
         job_matrix = []
@@ -288,9 +377,11 @@ class CandidateRanker:
             "seniority_level": seniority,
             "total_skills_count": len(skills),
             "skill_taxonomy": {
+                "cybersecurity_and_networking": cyber_skills,
                 "languages": languages,
                 "frameworks": frameworks,
                 "databases_and_cloud": databases_cloud,
+                "ai_and_data": ai_data,
                 "other_tools": other_skills
             },
             "experience_years": experience,

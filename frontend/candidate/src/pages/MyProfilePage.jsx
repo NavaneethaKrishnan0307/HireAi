@@ -1,23 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { CandidateAPI } from '../services/api';
-import { User, Mail, Phone, MapPin, Briefcase, GraduationCap, Code, CheckCircle, Plus, X } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Briefcase, GraduationCap, Code, CheckCircle, Plus, X, Sparkles } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export default function MyProfilePage() {
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const getCachedProfile = () => {
+    try {
+      const cached = localStorage.getItem('candidate_profile_cache');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const cachedData = getCachedProfile();
+  const [profile, setProfile] = useState(cachedData);
+  const [loading, setLoading] = useState(!cachedData);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [newSkill, setNewSkill] = useState('');
 
   const [formData, setFormData] = useState({
-    full_name: '',
-    email: '',
-    phone: '',
-    location: '',
-    current_title: '',
-    years_of_experience: 0,
-    education: '',
-    parsed_skills: []
+    full_name: cachedData?.full_name || '',
+    email: cachedData?.email || '',
+    phone: cachedData?.phone || '',
+    location: cachedData?.location || '',
+    current_title: cachedData?.current_title || '',
+    years_of_experience: cachedData?.years_of_experience ?? 0,
+    education: cachedData?.education || '',
+    parsed_skills: cachedData?.parsed_skills || []
   });
 
   useEffect(() => {
@@ -26,21 +37,23 @@ export default function MyProfilePage() {
 
   const loadProfile = async () => {
     try {
-      setLoading(true);
       const data = await CandidateAPI.getProfile();
-      setProfile(data);
-      setFormData({
-        full_name: data.full_name || '',
-        email: data.email || '',
-        phone: data.phone || '',
-        location: data.location || '',
-        current_title: data.current_title || '',
-        years_of_experience: data.years_of_experience || 0,
-        education: data.education || '',
-        parsed_skills: data.parsed_skills || []
-      });
+      if (data) {
+        setProfile(data);
+        localStorage.setItem('candidate_profile_cache', JSON.stringify(data));
+        setFormData({
+          full_name: data.full_name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          location: data.location || '',
+          current_title: data.current_title || '',
+          years_of_experience: data.years_of_experience ?? 0,
+          education: data.education || '',
+          parsed_skills: data.parsed_skills || []
+        });
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Failed to load candidate profile:', err);
     } finally {
       setLoading(false);
     }
@@ -50,27 +63,33 @@ export default function MyProfilePage() {
     e.preventDefault();
     if (!newSkill.trim()) return;
     if (!formData.parsed_skills.includes(newSkill.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        parsed_skills: [...prev.parsed_skills, newSkill.trim()]
-      }));
+      const updated = {
+        ...formData,
+        parsed_skills: [...formData.parsed_skills, newSkill.trim()]
+      };
+      setFormData(updated);
+      localStorage.setItem('candidate_profile_cache', JSON.stringify(updated));
     }
     setNewSkill('');
   };
 
   const handleRemoveSkill = (skillToRemove) => {
-    setFormData(prev => ({
-      ...prev,
-      parsed_skills: prev.parsed_skills.filter(s => s !== skillToRemove)
-    }));
+    const updated = {
+      ...formData,
+      parsed_skills: formData.parsed_skills.filter(s => s !== skillToRemove)
+    };
+    setFormData(updated);
+    localStorage.setItem('candidate_profile_cache', JSON.stringify(updated));
   };
 
   const handleSave = async (e) => {
     e.preventDefault();
     try {
       setSaving(true);
+      // Immediately cache to localStorage so it is never lost on refresh
+      localStorage.setItem('candidate_profile_cache', JSON.stringify(formData));
       await CandidateAPI.updateProfile(formData);
-      setSuccessMsg('Profile updated successfully!');
+      setSuccessMsg('Profile and skills saved successfully!');
       setTimeout(() => setSuccessMsg(''), 3000);
       await loadProfile();
     } catch (err) {
@@ -80,14 +99,34 @@ export default function MyProfilePage() {
     }
   };
 
-  if (loading) {
+  if (loading && !cachedData) {
     return <div className="content-area"><p>Loading profile...</p></div>;
   }
 
   return (
     <div className="content-area">
-      <h2 className="page-title">My Profile</h2>
-      <p className="page-subtitle">Manage your personal information, extracted skills, and experience details.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
+        <div>
+          <h2 className="page-title" style={{ margin: 0 }}>My Profile</h2>
+          <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>Manage your personal information, extracted skills, and experience details.</p>
+        </div>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <Link 
+            to="/report" 
+            className="choose-btn" 
+            style={{ margin: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a' }}
+          >
+            <Sparkles size={15} /> View AI Career Report
+          </Link>
+          <Link 
+            to="/upload" 
+            className="choose-btn" 
+            style={{ margin: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#2563eb' }}
+          >
+            Upload New Resume
+          </Link>
+        </div>
+      </div>
 
       {successMsg && (
         <div style={{ backgroundColor: '#ecfdf5', color: '#059669', padding: '12px 16px', borderRadius: '8px', marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>

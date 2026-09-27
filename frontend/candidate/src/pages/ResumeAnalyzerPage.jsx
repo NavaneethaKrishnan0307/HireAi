@@ -18,7 +18,8 @@ import {
   Check, 
   X,
   TrendingUp,
-  ShieldCheck
+  ShieldCheck,
+  User
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
 
@@ -91,13 +92,22 @@ export default function ResumeAnalyzerPage() {
           </p>
         </div>
 
-        <button 
-          onClick={handlePrint}
-          className="choose-btn" 
-          style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#0f172a' }}
-        >
-          <Printer size={16} /> Print / Export PDF
-        </button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <Link 
+            to="/profile"
+            className="choose-btn" 
+            style={{ margin: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#2563eb' }}
+          >
+            <User size={16} /> Modify Profile
+          </Link>
+          <button 
+            onClick={handlePrint}
+            className="choose-btn" 
+            style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#0f172a' }}
+          >
+            <Printer size={16} /> Print / Export PDF
+          </button>
+        </div>
       </div>
 
       {/* Top Banner: Score & Candidate Profile */}
@@ -208,14 +218,28 @@ export default function ResumeAnalyzerPage() {
           <Layers size={18} color="#2563eb" /> Extracted Skill Taxonomy ({report.total_skills_count} Skills Verified)
         </h3>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+          {/* Cybersecurity & InfoSec */}
+          {report.skill_taxonomy.cybersecurity_and_networking && report.skill_taxonomy.cybersecurity_and_networking.length > 0 && (
+            <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #fed7aa' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#c2410c', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <ShieldCheck size={14} color="#ea580c" /> Cybersecurity & Networking
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {report.skill_taxonomy.cybersecurity_and_networking.map(s => (
+                  <span key={s} className="skill-tag" style={{ backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5' }}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Languages */}
           <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
             <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <Code size={14} color="#2563eb" /> Programming Languages
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {report.skill_taxonomy.languages.length > 0 ? (
+              {report.skill_taxonomy.languages && report.skill_taxonomy.languages.length > 0 ? (
                 report.skill_taxonomy.languages.map(s => (
                   <span key={s} className="skill-tag" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>{s}</span>
                 ))
@@ -231,7 +255,7 @@ export default function ResumeAnalyzerPage() {
               <Layers size={14} color="#7c3aed" /> Frameworks & Libraries
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {report.skill_taxonomy.frameworks.length > 0 ? (
+              {report.skill_taxonomy.frameworks && report.skill_taxonomy.frameworks.length > 0 ? (
                 report.skill_taxonomy.frameworks.map(s => (
                   <span key={s} className="skill-tag" style={{ backgroundColor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe' }}>{s}</span>
                 ))
@@ -247,7 +271,7 @@ export default function ResumeAnalyzerPage() {
               <Cloud size={14} color="#059669" /> Cloud, DevOps & Databases
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {report.skill_taxonomy.databases_and_cloud.length > 0 ? (
+              {report.skill_taxonomy.databases_and_cloud && report.skill_taxonomy.databases_and_cloud.length > 0 ? (
                 report.skill_taxonomy.databases_and_cloud.map(s => (
                   <span key={s} className="skill-tag" style={{ backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>{s}</span>
                 ))
@@ -256,6 +280,34 @@ export default function ResumeAnalyzerPage() {
               )}
             </div>
           </div>
+
+          {/* AI / Machine Learning */}
+          {report.skill_taxonomy.ai_and_data && report.skill_taxonomy.ai_and_data.length > 0 && (
+            <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Sparkles size={14} color="#0891b2" /> AI & Data Science
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {report.skill_taxonomy.ai_and_data.map(s => (
+                  <span key={s} className="skill-tag" style={{ backgroundColor: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc' }}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other Tools */}
+          {report.skill_taxonomy.other_tools && report.skill_taxonomy.other_tools.length > 0 && (
+            <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+              <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <FileText size={14} color="#64748b" /> Additional Tools & Protocols
+              </h4>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {report.skill_taxonomy.other_tools.map(s => (
+                  <span key={s} className="skill-tag" style={{ backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}>{s}</span>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
