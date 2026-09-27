@@ -27,6 +27,8 @@ export default function ResumeAnalyzerPage() {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [syncingName, setSyncingName] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState('');
 
   useEffect(() => {
     loadReport();
@@ -47,6 +49,28 @@ export default function ResumeAnalyzerPage() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleSyncProfileName = async (newName) => {
+    if (!newName) return;
+    try {
+      setSyncingName(true);
+      await CandidateAPI.updateProfile({ full_name: newName });
+      const cached = localStorage.getItem('candidate_profile_cache');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          localStorage.setItem('candidate_profile_cache', JSON.stringify({ ...parsed, full_name: newName }));
+        } catch {}
+      }
+      setSyncSuccess(`Profile name successfully updated to '${newName}'!`);
+      setTimeout(() => setSyncSuccess(''), 3500);
+      await loadReport();
+    } catch (err) {
+      alert(err.message || 'Failed to update profile name');
+    } finally {
+      setSyncingName(false);
+    }
   };
 
   if (loading) {
@@ -78,30 +102,14 @@ export default function ResumeAnalyzerPage() {
   const scoreColor = atsScore >= 80 ? '#10b981' : atsScore >= 60 ? '#f59e0b' : '#ef4444';
   const scoreBg = atsScore >= 80 ? '#ecfdf5' : atsScore >= 60 ? '#fffbeb' : '#fef2f2';
 
-  const [syncingName, setSyncingName] = useState(false);
-  const [syncSuccess, setSyncSuccess] = useState('');
-
-  const handleSyncProfileName = async (newName) => {
-    if (!newName) return;
-    try {
-      setSyncingName(true);
-      await CandidateAPI.updateProfile({ full_name: newName });
-      const cached = localStorage.getItem('candidate_profile_cache');
-      if (cached) {
-        try {
-          const parsed = JSON.parse(cached);
-          localStorage.setItem('candidate_profile_cache', JSON.stringify({ ...parsed, full_name: newName }));
-        } catch {}
-      }
-      setSyncSuccess(`Profile name successfully updated to '${newName}'!`);
-      setTimeout(() => setSyncSuccess(''), 3500);
-      await loadReport();
-    } catch (err) {
-      alert(err.message || 'Failed to update profile name');
-    } finally {
-      setSyncingName(false);
-    }
-  };
+  const skillTax = report.skill_taxonomy || {};
+  const strengths = report.strengths || [];
+  const weaknesses = report.weaknesses || [];
+  const recommendations = report.recommendations || [];
+  const jobMatrix = report.job_matrix || [];
+  const lineAnalysis = report.line_analysis || [];
+  const lineSummary = report.line_metrics_summary || { metric_lines: 0, action_verbs: 0, passive_phrases: 0 };
+  const authVerif = report.authenticity_verification || {};
 
   return (
     <div className="content-area print-area">
@@ -143,9 +151,9 @@ export default function ResumeAnalyzerPage() {
       )}
 
       {/* Authenticity & Identity Verification Banner */}
-      {report.authenticity_verification && (
+      {authVerif && (
         <div style={{ marginBottom: '20px' }}>
-          {report.authenticity_verification.name_mismatch && (
+          {authVerif.name_mismatch && (
             <div style={{ 
               backgroundColor: '#fffbeb', 
               border: '1px solid #fde68a', 
@@ -165,7 +173,7 @@ export default function ResumeAnalyzerPage() {
                     Identity Discrepancy Flagged
                   </h4>
                   <p style={{ fontSize: '13px', color: '#b45309', margin: 0, lineHeight: 1.4 }}>
-                    Resume document header states candidate name <strong>"{report.authenticity_verification.resume_name}"</strong>, but your logged-in profile name is <strong>"{report.authenticity_verification.profile_name}"</strong>.
+                    Resume document header states candidate name <strong>"{authVerif.resume_name}"</strong>, but your logged-in profile name is <strong>"{authVerif.profile_name}"</strong>.
                   </p>
                 </div>
               </div>
@@ -173,16 +181,16 @@ export default function ResumeAnalyzerPage() {
                 type="button"
                 className="choose-btn"
                 disabled={syncingName}
-                onClick={() => handleSyncProfileName(report.authenticity_verification.resume_name)}
+                onClick={() => handleSyncProfileName(authVerif.resume_name)}
                 style={{ margin: 0, padding: '8px 16px', fontSize: '12px', backgroundColor: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
                 <CheckCircle2 size={14} />
-                {syncingName ? 'Updating...' : `Sync Profile Name to "${report.authenticity_verification.resume_name}"`}
+                {syncingName ? 'Updating...' : `Sync Profile Name to "${authVerif.resume_name}"`}
               </button>
             </div>
           )}
 
-          {!report.authenticity_verification.is_valid_resume && (
+          {authVerif.is_valid_resume === false && (
             <div style={{ 
               backgroundColor: '#fef2f2', 
               border: '1px solid #fecaca', 
@@ -222,7 +230,7 @@ export default function ResumeAnalyzerPage() {
         <div>
           <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: '700' }}>Candidate Audit Profile</span>
           <h3 style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', marginBottom: '8px' }}>
-            {report.candidate_name}
+            {report.candidate_name || 'Candidate'}
             {report.resume_name && report.resume_name !== report.candidate_name && (
               <span style={{ fontSize: '14px', fontWeight: '400', color: '#94a3b8', marginLeft: '10px' }}>
                 (Resume: {report.resume_name})
@@ -230,17 +238,17 @@ export default function ResumeAnalyzerPage() {
             )}
           </h3>
           <p style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '14px' }}>
-            {report.email} {report.phone ? `• ${report.phone}` : ''}
+            {report.email || ''} {report.phone ? `• ${report.phone}` : ''}
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
             <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>
-              🎯 {report.seniority_level}
+              🎯 {report.seniority_level || 'Software Developer'}
             </span>
             <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>
-              ⏳ {report.experience_years} Years Experience
+              ⏳ {report.experience_years || 0} Years Experience
             </span>
             <span style={{ backgroundColor: 'rgba(255,255,255,0.1)', padding: '4px 12px', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }}>
-              🎓 {report.education}
+              🎓 {report.education || 'Graduate'}
             </span>
           </div>
         </div>
@@ -276,7 +284,7 @@ export default function ResumeAnalyzerPage() {
               {atsScore >= 80 ? 'Excellent Match Health' : atsScore >= 60 ? 'Good Standard Profile' : 'Needs Optimization'}
             </h4>
             <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>
-              {report.authenticity_verification && !report.authenticity_verification.is_valid_resume 
+              {authVerif.is_valid_resume === false 
                 ? 'Non-resume document structure detected. Upload a standard resume format.' 
                 : 'Deterministic multi-pillar applicant tracking system audit.'}
             </p>
@@ -318,7 +326,7 @@ export default function ResumeAnalyzerPage() {
       )}
 
       {/* Interactive Line-by-Line Document Inspector */}
-      {report.line_analysis && report.line_analysis.length > 0 && (
+      {lineAnalysis.length > 0 && (
         <div className="card" style={{ marginBottom: '24px', padding: '22px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
             <div>
@@ -329,17 +337,17 @@ export default function ResumeAnalyzerPage() {
                 Live annotation of every bullet point. Identifies passive phrasing, metrics, power verbs, and provides STAR rewrite suggestions.
               </p>
             </div>
-            {report.line_metrics_summary && (
+            {lineSummary && (
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 <span style={{ backgroundColor: '#ecfdf5', color: '#047857', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
-                  ✓ {report.line_metrics_summary.metric_lines} Metric Statements
+                  ✓ {lineSummary.metric_lines || 0} Metric Statements
                 </span>
                 <span style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
-                  ⚡ {report.line_metrics_summary.action_verbs} Power Verbs
+                  ⚡ {lineSummary.action_verbs || 0} Power Verbs
                 </span>
-                {report.line_metrics_summary.passive_phrases > 0 && (
+                {(lineSummary.passive_phrases || 0) > 0 && (
                   <span style={{ backgroundColor: '#fef2f2', color: '#b91c1c', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
-                    ⚠️ {report.line_metrics_summary.passive_phrases} Passive Phrasings
+                    ⚠️ {lineSummary.passive_phrases} Passive Phrasings
                   </span>
                 )}
               </div>
@@ -347,7 +355,7 @@ export default function ResumeAnalyzerPage() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
-            {report.line_analysis.map((line, idx) => {
+            {lineAnalysis.map((line, idx) => {
               if (line.category === 'SECTION_HEADER') {
                 return (
                   <div key={idx} style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderRadius: '6px', fontWeight: '800', fontSize: '12px', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: idx > 0 ? '8px' : '0' }}>
@@ -395,7 +403,7 @@ export default function ResumeAnalyzerPage() {
             <Award size={18} color="#10b981" /> Key Competitive Strengths
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {report.strengths.map((str, idx) => (
+            {strengths.map((str, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', color: '#334155' }}>
                 <CheckCircle2 size={16} color="#10b981" style={{ flexShrink: 0, marginTop: '2px' }} />
                 <span>{str}</span>
@@ -410,7 +418,7 @@ export default function ResumeAnalyzerPage() {
             <AlertTriangle size={18} color="#f59e0b" /> Growth & Improvement Areas
           </h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {report.weaknesses.map((weak, idx) => (
+            {weaknesses.map((weak, idx) => (
               <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '13px', color: '#334155' }}>
                 <AlertTriangle size={16} color="#f59e0b" style={{ flexShrink: 0, marginTop: '2px' }} />
                 <span>{weak}</span>
@@ -423,18 +431,18 @@ export default function ResumeAnalyzerPage() {
       {/* Categorized Technical Skill Taxonomy */}
       <div className="card" style={{ marginBottom: '24px', padding: '22px' }}>
         <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Layers size={18} color="#2563eb" /> Extracted Skill Taxonomy ({report.total_skills_count} Skills Verified)
+          <Layers size={18} color="#2563eb" /> Extracted Skill Taxonomy ({report.total_skills_count || 0} Skills Verified)
         </h3>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
           {/* Cybersecurity & InfoSec */}
-          {report.skill_taxonomy.cybersecurity_and_networking && report.skill_taxonomy.cybersecurity_and_networking.length > 0 && (
+          {skillTax.cybersecurity_and_networking && skillTax.cybersecurity_and_networking.length > 0 && (
             <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #fed7aa' }}>
               <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#c2410c', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <ShieldCheck size={14} color="#ea580c" /> Cybersecurity & Networking
               </h4>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {report.skill_taxonomy.cybersecurity_and_networking.map(s => (
+                {skillTax.cybersecurity_and_networking.map(s => (
                   <span key={s} className="skill-tag" style={{ backgroundColor: '#fff7ed', color: '#c2410c', border: '1px solid #ffedd5' }}>{s}</span>
                 ))}
               </div>
@@ -447,8 +455,8 @@ export default function ResumeAnalyzerPage() {
               <Code size={14} color="#2563eb" /> Programming Languages
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {report.skill_taxonomy.languages && report.skill_taxonomy.languages.length > 0 ? (
-                report.skill_taxonomy.languages.map(s => (
+              {skillTax.languages && skillTax.languages.length > 0 ? (
+                skillTax.languages.map(s => (
                   <span key={s} className="skill-tag" style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', border: '1px solid #bfdbfe' }}>{s}</span>
                 ))
               ) : (
@@ -463,8 +471,8 @@ export default function ResumeAnalyzerPage() {
               <Layers size={14} color="#7c3aed" /> Frameworks & Libraries
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {report.skill_taxonomy.frameworks && report.skill_taxonomy.frameworks.length > 0 ? (
-                report.skill_taxonomy.frameworks.map(s => (
+              {skillTax.frameworks && skillTax.frameworks.length > 0 ? (
+                skillTax.frameworks.map(s => (
                   <span key={s} className="skill-tag" style={{ backgroundColor: '#f5f3ff', color: '#6d28d9', border: '1px solid #ddd6fe' }}>{s}</span>
                 ))
               ) : (
@@ -479,8 +487,8 @@ export default function ResumeAnalyzerPage() {
               <Cloud size={14} color="#059669" /> Cloud, DevOps & Databases
             </h4>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-              {report.skill_taxonomy.databases_and_cloud && report.skill_taxonomy.databases_and_cloud.length > 0 ? (
-                report.skill_taxonomy.databases_and_cloud.map(s => (
+              {skillTax.databases_and_cloud && skillTax.databases_and_cloud.length > 0 ? (
+                skillTax.databases_and_cloud.map(s => (
                   <span key={s} className="skill-tag" style={{ backgroundColor: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}>{s}</span>
                 ))
               ) : (
@@ -490,13 +498,13 @@ export default function ResumeAnalyzerPage() {
           </div>
 
           {/* AI / Machine Learning */}
-          {report.skill_taxonomy.ai_and_data && report.skill_taxonomy.ai_and_data.length > 0 && (
+          {skillTax.ai_and_data && skillTax.ai_and_data.length > 0 && (
             <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
               <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Sparkles size={14} color="#0891b2" /> AI & Data Science
               </h4>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {report.skill_taxonomy.ai_and_data.map(s => (
+                {skillTax.ai_and_data.map(s => (
                   <span key={s} className="skill-tag" style={{ backgroundColor: '#ecfeff', color: '#0e7490', border: '1px solid #a5f3fc' }}>{s}</span>
                 ))}
               </div>
@@ -504,13 +512,13 @@ export default function ResumeAnalyzerPage() {
           )}
 
           {/* Other Tools */}
-          {report.skill_taxonomy.other_tools && report.skill_taxonomy.other_tools.length > 0 && (
+          {skillTax.other_tools && skillTax.other_tools.length > 0 && (
             <div style={{ backgroundColor: '#f8fafc', padding: '16px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
               <h4 style={{ fontSize: '13px', fontWeight: '700', color: '#475569', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <FileText size={14} color="#64748b" /> Additional Tools & Protocols
               </h4>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                {report.skill_taxonomy.other_tools.map(s => (
+                {skillTax.other_tools.map(s => (
                   <span key={s} className="skill-tag" style={{ backgroundColor: '#f1f5f9', color: '#334155', border: '1px solid #cbd5e1' }}>{s}</span>
                 ))}
               </div>
@@ -525,7 +533,7 @@ export default function ResumeAnalyzerPage() {
           <Lightbulb size={18} color="#eab308" /> Actionable Hireability Roadmap
         </h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-          {report.recommendations.map((rec, idx) => (
+          {recommendations.map((rec, idx) => (
             <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', backgroundColor: '#f8fafc', padding: '12px 16px', borderRadius: '8px' }}>
               <div style={{ width: '22px', height: '22px', borderRadius: '50%', backgroundColor: '#2563eb', color: '#fff', fontSize: '11px', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                 {idx + 1}
@@ -552,11 +560,11 @@ export default function ResumeAnalyzerPage() {
           </Link>
         </div>
 
-        {report.job_matrix.length === 0 ? (
+        {jobMatrix.length === 0 ? (
           <p style={{ color: '#64748b', fontSize: '13px' }}>No active job openings currently found on the platform.</p>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {report.job_matrix.map(job => (
+            {jobMatrix.map(job => (
               <div key={job.job_id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', backgroundColor: job.is_domain_mismatch ? '#fafafa' : '#fff' }}>
                 <div style={{ flex: 1, minWidth: '240px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
@@ -582,12 +590,12 @@ export default function ResumeAnalyzerPage() {
                   )}
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                    {job.matched_skills.map(s => (
+                    {(job.matched_skills || []).map(s => (
                       <span key={s} style={{ backgroundColor: '#ecfdf5', color: '#059669', fontSize: '11px', padding: '2px 8px', borderRadius: '12px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                         <Check size={10} /> {s}
                       </span>
                     ))}
-                    {job.missing_skills.map(s => (
+                    {(job.missing_skills || []).map(s => (
                       <span key={s} style={{ backgroundColor: '#fef2f2', color: '#dc2626', fontSize: '11px', padding: '2px 8px', borderRadius: '12px', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                         <X size={10} /> {s}
                       </span>
