@@ -1,5 +1,7 @@
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, HTTPException, Depends, Query
+import io
+import csv
+from fastapi import APIRouter, HTTPException, Depends, Query, Response
 from backend.api.auth import require_hr
 from backend.utils.supabase_client import get_supabase
 from backend.services.candidate_ranker import CandidateRanker
@@ -48,7 +50,7 @@ def get_dashboard(user: Dict[str, Any] = Depends(require_hr)):
         cand_copy["avatar_url"] = u_info.get("avatar_url", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80")
         enriched_candidates.append(cand_copy)
 
-    # 6. Generate Top Candidate Matches for default job or general search
+    # 6. Generate Top Candidate Matches for default job
     default_job = jobs[0] if jobs else {
         "id": "default",
         "title": "Software Engineer",
@@ -108,10 +110,18 @@ def search_candidates(query: JobSearchQuery, user: Dict[str, Any] = Depends(requ
         "certifications_preferred": [c.strip() for c in (query.certifications or "").split(",") if c.strip()]
     }
 
-    ranked_results = CandidateRanker.rank_candidates(enriched, search_job_spec)
+    custom_weights = {
+        "skills": float(query.weight_skills or 0.50),
+        "experience": float(query.weight_experience or 0.25),
+        "education": float(query.weight_education or 0.15),
+        "additional": float(query.weight_additional or 0.10)
+    }
+
+    ranked_results = CandidateRanker.rank_candidates(enriched, search_job_spec, custom_weights=custom_weights)
 
     return {
         "query": query.model_dump(),
+        "applied_weights": custom_weights,
         "total_results": len(ranked_results),
         "results": ranked_results
     }
@@ -156,7 +166,8 @@ def create_job(req: JobCreate, user: Dict[str, Any] = Depends(require_hr)):
         "preferred_skills": req.preferred_skills,
         "certifications_preferred": req.certifications_preferred,
         "description": req.description,
-        "status": req.status or "active"
+        "status": req.status or "active",
+        "scoring_weights": req.scoring_weights or {"skills": 0.50, "experience": 0.25, "education": 0.15, "additional": 0.10}
     }
 
     res = supabase.table("jobs").insert(job_payload).execute()
@@ -195,13 +206,32 @@ def delete_job(job_id: str, user: Dict[str, Any] = Depends(require_hr)):
 
 
 @router.get("/jobs/{job_id}/applicants")
-def get_job_applicants(job_id: str, user: Dict[str, Any] = Depends(require_hr)):
+def get_job_applicants(
+    job_id: str,
+    weight_skills: Optional[float] = None,
+    weight_experience: Optional[float] = None,
+    weight_education: Optional[float] = None,
+    weight_additional: Optional[float] = None,
+    user: Dict[str, Any] = Depends(require_hr)
+):
     supabase = get_supabase()
     
     job_res = supabase.table("jobs").select("*").eq("id", job_id).execute()
     if not job_res.data:
         raise HTTPException(status_code=404, detail="Job not found")
     job = job_res.data[0]
+
+    # Resolve scoring weights (URL override -> job saved weights -> default)
+    custom_weights = None
+    if any(w is not None for w in [weight_skills, weight_experience, weight_education, weight_additional]):
+        custom_weights = {
+            "skills": float(weight_skills if weight_skills is not None else 0.50),
+            "experience": float(weight_experience if weight_experience is not None else 0.25),
+            "education": float(weight_education if weight_education is not None else 0.15),
+            "additional": float(weight_additional if weight_additional is not None else 0.10)
+        }
+    elif job.get("scoring_weights"):
+        custom_weights = job.get("scoring_weights")
 
     apps_res = supabase.table("applications").select("*").eq("job_id", job_id).execute()
     apps = apps_res.data or []
@@ -226,8 +256,8 @@ def get_job_applicants(job_id: str, user: Dict[str, Any] = Depends(require_hr)):
         cand_with_user["application_status"] = app.get("status")
         cand_with_user["applied_at"] = app.get("applied_at")
 
-        # Calculate explainable match score
-        match_details = CandidateRanker.calculate_candidate_match(cand_with_user, job)
+        # Calculate explainable match score with weights
+        match_details = CandidateRanker.calculate_candidate_match(cand_with_user, job, custom_weights=custom_weights)
         cand_with_user["match_score"] = match_details["overall_score"]
         cand_with_user["match_details"] = match_details
 
@@ -236,6 +266,38 @@ def get_job_applicants(job_id: str, user: Dict[str, Any] = Depends(require_hr)):
     # Sort applicants by match score descending
     applicant_list.sort(key=lambda x: x.get("match_score", 0), reverse=True)
     return applicant_list
+
+
+@router.get("/jobs/{job_id}/export-csv")
+def export_job_applicants_csv(job_id: str, user: Dict[str, Any] = Depends(require_hr)):
+    """Export ranked candidate list as a formatted CSV spreadsheet."""
+    applicants = get_job_applicants(job_id=job_id, user=user)
+    
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["Rank", "Candidate Name", "Email", "Phone", "Experience (Yrs)", "Education", "Match Score (%)", "Matched Skills", "Missing Skills", "Status"])
+    
+    for idx, cand in enumerate(applicants, start=1):
+        md = cand.get("match_details", {})
+        writer.writerow([
+            idx,
+            cand.get("full_name", "N/A"),
+            cand.get("email", "N/A"),
+            cand.get("phone", "N/A"),
+            cand.get("years_of_experience", 0),
+            cand.get("education", "N/A"),
+            f"{cand.get('match_score', 0)}%",
+            ", ".join(md.get("matched_skills", [])),
+            ", ".join(md.get("missing_skills", [])),
+            cand.get("application_status", "applied")
+        ])
+    
+    output.seek(0)
+    return Response(
+        content=output.getvalue(),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=HireAI_Job_{job_id}_Rankings.csv"}
+    )
 
 
 @router.get("/candidates")

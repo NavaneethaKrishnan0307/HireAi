@@ -120,12 +120,38 @@ export const HRAPI = {
     return res.json();
   },
 
-  async getJobApplicants(jobId) {
-    const res = await fetch(`${API_BASE}/api/hr/jobs/${jobId}/applicants`, {
+  async getJobApplicants(jobId, weights = null) {
+    let url = `${API_BASE}/api/hr/jobs/${jobId}/applicants`;
+    if (weights) {
+      const params = new URLSearchParams({
+        weight_skills: weights.skills || 0.50,
+        weight_experience: weights.experience || 0.25,
+        weight_education: weights.education || 0.15,
+        weight_additional: weights.additional || 0.10
+      });
+      url += `?${params.toString()}`;
+    }
+    const res = await fetch(url, {
       headers: { ...getAuthHeader() }
     });
     if (!res.ok) throw new Error('Failed to load applicants');
     return res.json();
+  },
+
+  async exportJobApplicantsCsv(jobId) {
+    const res = await fetch(`${API_BASE}/api/hr/jobs/${jobId}/export-csv`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to export CSV');
+    const blob = await res.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `HireAI_Rankings_Job_${jobId}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(url);
   },
 
   // Candidates

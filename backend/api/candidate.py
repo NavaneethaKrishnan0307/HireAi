@@ -100,16 +100,19 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
         j = dict(job)
         j["has_applied"] = j["id"] in applied_job_ids
         
-        # Calculate matching score preview
+        # Calculate matching score and explainable gap advice
         if cand_data.get("parsed_skills"):
             match_res = CandidateRanker.calculate_candidate_match(cand_data, j)
             j["match_score"] = match_res["overall_score"]
             j["matched_skills"] = match_res["matched_skills"]
             j["missing_skills"] = match_res["missing_skills"]
+            j["skill_gap_advice"] = match_res.get("skill_gap_advice", [])
+            j["match_details"] = match_res
         else:
             j["match_score"] = 0
             j["matched_skills"] = []
             j["missing_skills"] = j.get("required_skills", [])
+            j["skill_gap_advice"] = []
 
         results.append(j)
 
@@ -127,7 +130,6 @@ def get_job_detail(job_id: str, user: Dict[str, Any] = Depends(require_candidate
     
     job = job_res.data[0]
 
-    # Calculate match details for this candidate
     user_id = user["sub"]
     cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
     cand_data = cand_res.data[0] if cand_res.data else {}

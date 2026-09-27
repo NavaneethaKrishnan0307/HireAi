@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CandidateAPI } from '../services/api';
-import { MapPin, Briefcase, IndianRupee, Sparkles, CheckCircle2, Search } from 'lucide-react';
+import { MapPin, Briefcase, IndianRupee, Sparkles, CheckCircle2, Search, Lightbulb } from 'lucide-react';
 
 export default function AvailableJobsPage() {
   const [jobs, setJobs] = useState([]);
@@ -8,7 +8,6 @@ export default function AvailableJobsPage() {
   const [applyingId, setApplyingId] = useState(null);
   const [appliedJobs, setAppliedJobs] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedJob, setSelectedJob] = useState(null);
 
   useEffect(() => {
     loadJobs();
@@ -84,6 +83,7 @@ export default function AvailableJobsPage() {
             const score = job.match_score || 0;
             const scoreColor = score >= 80 ? '#059669' : score >= 60 ? '#d97706' : '#64748b';
             const scoreBg = score >= 80 ? '#ecfdf5' : score >= 60 ? '#fffbeb' : '#f1f5f9';
+            const gapAdvice = job.skill_gap_advice || [];
 
             return (
               <div key={job.id} className="card" style={{ transition: 'box-shadow 0.2s', padding: '22px' }}>
@@ -128,7 +128,7 @@ export default function AvailableJobsPage() {
                   {job.description}
                 </p>
 
-                <div style={{ marginBottom: '16px' }}>
+                <div style={{ marginBottom: '14px' }}>
                   <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Required Skills:</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
                     {job.required_skills?.map(s => {
@@ -149,6 +149,18 @@ export default function AvailableJobsPage() {
                     })}
                   </div>
                 </div>
+
+                {/* Skill Gap Advice */}
+                {gapAdvice.length > 0 && !hasApplied && (
+                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#b45309', fontWeight: '700', fontSize: '12px', marginBottom: '4px' }}>
+                      <Lightbulb size={14} /> Skill Gap Advisor
+                    </div>
+                    <p style={{ fontSize: '12px', color: '#78350f', margin: 0 }}>
+                      {gapAdvice[0].recommendation}
+                    </p>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   {hasApplied ? (

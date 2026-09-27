@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel, Field
 
 class JobCreate(BaseModel):
@@ -15,6 +15,9 @@ class JobCreate(BaseModel):
     certifications_preferred: Optional[List[str]] = Field(default_factory=list)
     description: Optional[str] = ""
     status: Optional[str] = "active"
+    scoring_weights: Optional[Dict[str, float]] = Field(
+        default_factory=lambda: {"skills": 0.50, "experience": 0.25, "education": 0.15, "additional": 0.10}
+    )
 
 class JobUpdate(BaseModel):
     title: Optional[str] = None
@@ -30,6 +33,7 @@ class JobUpdate(BaseModel):
     certifications_preferred: Optional[List[str]] = None
     description: Optional[str] = None
     status: Optional[str] = None
+    scoring_weights: Optional[Dict[str, float]] = None
 
 class JobResponse(BaseModel):
     id: str
@@ -48,6 +52,7 @@ class JobResponse(BaseModel):
     description: Optional[str] = ""
     status: str = "active"
     applicant_count: Optional[int] = 0
+    scoring_weights: Optional[Dict[str, float]] = None
 
 class JobSearchQuery(BaseModel):
     skills: Optional[str] = ""
@@ -59,3 +64,7 @@ class JobSearchQuery(BaseModel):
     education: Optional[str] = ""
     title: Optional[str] = ""
     certifications: Optional[str] = ""
+    weight_skills: Optional[float] = 0.50
+    weight_experience: Optional[float] = 0.25
+    weight_education: Optional[float] = 0.15
+    weight_additional: Optional[float] = 0.10
