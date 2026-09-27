@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { CandidateAPI } from '../services/api';
-import { MapPin, Briefcase, IndianRupee, Sparkles, CheckCircle2, Search, Lightbulb } from 'lucide-react';
+import { MapPin, Briefcase, IndianRupee, Sparkles, CheckCircle2, Search, Lightbulb, ArrowUpRight } from 'lucide-react';
 
 export default function AvailableJobsPage() {
   const [jobs, setJobs] = useState([]);
@@ -51,7 +51,7 @@ export default function AvailableJobsPage() {
 
   return (
     <div className="content-area">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
           <h2 className="page-title">Available Opportunities</h2>
           <p className="page-subtitle">Personalized AI match ratings tailored to your parsed resume profile.</p>
@@ -77,17 +77,18 @@ export default function AvailableJobsPage() {
           <p style={{ color: '#64748b' }}>No matching job openings found.</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           {filteredJobs.map(job => {
             const hasApplied = appliedJobs[job.id];
             const score = job.match_score || 0;
-            const scoreColor = score >= 80 ? '#059669' : score >= 60 ? '#d97706' : '#64748b';
-            const scoreBg = score >= 80 ? '#ecfdf5' : score >= 60 ? '#fffbeb' : '#f1f5f9';
+            const scoreColor = score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#64748b';
+            const scoreBg = score >= 80 ? '#ecfdf5' : score >= 50 ? '#fffbeb' : '#f1f5f9';
             const gapAdvice = job.skill_gap_advice || [];
+            const missingSkills = job.missing_skills || [];
 
             return (
               <div key={job.id} className="card" style={{ transition: 'box-shadow 0.2s', padding: '22px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px' }}>
                   <div>
                     <h3 style={{ fontSize: '18px', fontWeight: '700', color: '#0f172a', marginBottom: '4px' }}>
                       {job.title}
@@ -97,26 +98,24 @@ export default function AvailableJobsPage() {
                     </p>
                   </div>
 
-                  {score > 0 && (
-                    <div style={{ 
-                      backgroundColor: scoreBg, 
-                      color: scoreColor, 
-                      padding: '6px 14px', 
-                      borderRadius: '20px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '6px',
-                      fontWeight: '700',
-                      fontSize: '13px',
-                      border: `1px solid ${scoreColor}33`
-                    }}>
-                      <Sparkles size={14} />
-                      <span>{score}% Match</span>
-                    </div>
-                  )}
+                  <div style={{ 
+                    backgroundColor: scoreBg, 
+                    color: scoreColor, 
+                    padding: '6px 14px', 
+                    borderRadius: '20px', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px',
+                    fontWeight: '800',
+                    fontSize: '13px',
+                    border: `1px solid ${scoreColor}33`
+                  }}>
+                    <Sparkles size={14} />
+                    <span>{score}% Match</span>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '20px', fontSize: '13px', color: '#475569', margin: '10px 0' }}>
+                <div style={{ display: 'flex', gap: '20px', fontSize: '13px', color: '#475569', margin: '10px 0', flexWrap: 'wrap' }}>
                   <span><strong>Experience:</strong> {job.min_experience}+ Years</span>
                   <span><strong>Education:</strong> {job.education_required}</span>
                   {job.min_salary > 0 && (
@@ -150,22 +149,40 @@ export default function AvailableJobsPage() {
                   </div>
                 </div>
 
-                {/* Skill Gap Advice */}
-                {gapAdvice.length > 0 && !hasApplied && (
-                  <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', padding: '10px 14px', marginBottom: '16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#b45309', fontWeight: '700', fontSize: '12px', marginBottom: '4px' }}>
-                      <Lightbulb size={14} /> Skill Gap Advisor
-                    </div>
-                    <p style={{ fontSize: '12px', color: '#78350f', margin: 0 }}>
-                      {gapAdvice[0].recommendation}
-                    </p>
+                {/* Always-Visible Skill Gap Advisor Box */}
+                <div style={{ 
+                  background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', 
+                  border: '1px solid #fde68a', 
+                  borderRadius: '10px', 
+                  padding: '12px 16px', 
+                  marginBottom: '16px' 
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#b45309', fontWeight: '800', fontSize: '13px', marginBottom: '6px' }}>
+                    <Lightbulb size={16} /> Skill Gap Advisor & Recommendations
                   </div>
-                )}
+                  {gapAdvice.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      {gapAdvice.slice(0, 2).map((item, idx) => (
+                        <p key={idx} style={{ fontSize: '12px', color: '#78350f', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <ArrowUpRight size={13} /> {item.recommendation}
+                        </p>
+                      ))}
+                    </div>
+                  ) : missingSkills.length > 0 ? (
+                    <p style={{ fontSize: '12px', color: '#78350f', margin: 0 }}>
+                      Missing skills: <strong>{missingSkills.join(', ')}</strong>. Upload your updated resume to verify your qualifications and boost your match rating!
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: '12px', color: '#065f46', margin: 0, fontWeight: '600' }}>
+                      ✓ Outstanding match! You possess all core required skills for this position.
+                    </p>
+                  )}
+                </div>
 
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                   {hasApplied ? (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#059669', fontWeight: '600', fontSize: '14px', padding: '8px 16px' }}>
-                      <CheckCircle2 size={16} /> Applied
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#059669', fontWeight: '700', fontSize: '13px', padding: '8px 16px', background: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
+                      <CheckCircle2 size={16} /> Application Submitted
                     </span>
                   ) : (
                     <button 

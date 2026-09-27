@@ -101,7 +101,7 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
         j["has_applied"] = j["id"] in applied_job_ids
         
         # Calculate matching score and explainable gap advice
-        if cand_data.get("parsed_skills"):
+        if cand_data.get("parsed_skills") and len(cand_data.get("parsed_skills", [])) > 0:
             match_res = CandidateRanker.calculate_candidate_match(cand_data, j)
             j["match_score"] = match_res["overall_score"]
             j["matched_skills"] = match_res["matched_skills"]
@@ -111,8 +111,14 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
         else:
             j["match_score"] = 0
             j["matched_skills"] = []
-            j["missing_skills"] = j.get("required_skills", [])
-            j["skill_gap_advice"] = []
+            req_skills = j.get("required_skills", [])
+            j["missing_skills"] = req_skills
+            # Generate constructive advice for required skills
+            j["skill_gap_advice"] = CandidateRanker.generate_skill_gap_advice(
+                missing_skills=req_skills,
+                total_req_skills=len(req_skills),
+                skill_weight=0.50
+            )
 
         results.append(j)
 
