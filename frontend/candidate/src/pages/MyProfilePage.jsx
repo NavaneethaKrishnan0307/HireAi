@@ -10,6 +10,8 @@ export default function MyProfilePage() {
   const [newSkill, setNewSkill] = useState('');
 
   const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
     phone: '',
     location: '',
     current_title: '',
@@ -28,6 +30,8 @@ export default function MyProfilePage() {
       const data = await CandidateAPI.getProfile();
       setProfile(data);
       setFormData({
+        full_name: data.full_name || '',
+        email: data.email || '',
         phone: data.phone || '',
         location: data.location || '',
         current_title: data.current_title || '',
@@ -99,11 +103,23 @@ export default function MyProfilePage() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             <div className="form-group">
               <label className="form-label">Full Name</label>
-              <input type="text" className="form-input" value={profile?.full_name || ''} disabled style={{ backgroundColor: '#f1f5f9' }} />
+              <input 
+                type="text" 
+                className="form-input" 
+                value={formData.full_name} 
+                onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} 
+                placeholder="Joe Candidate"
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Email Address</label>
-              <input type="email" className="form-input" value={profile?.email || ''} disabled style={{ backgroundColor: '#f1f5f9' }} />
+              <input 
+                type="email" 
+                className="form-input" 
+                value={formData.email} 
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })} 
+                placeholder="joe@example.com"
+              />
             </div>
             <div className="form-group">
               <label className="form-label">Phone Number</label>

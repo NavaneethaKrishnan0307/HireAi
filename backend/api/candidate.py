@@ -18,11 +18,28 @@ def get_profile(user: Dict[str, Any] = Depends(require_candidate)):
     
     cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
     if not cand_res.data or len(cand_res.data) == 0:
-        raise HTTPException(status_code=404, detail="Candidate profile not found")
+        new_cand = {
+            "user_id": user_id,
+            "phone": "",
+            "location": "",
+            "current_title": "",
+            "years_of_experience": 0.0,
+            "education": "",
+            "resume_status": "unprocessed",
+            "parsed_skills": []
+        }
+        res_insert = supabase.table("candidates").insert(new_cand).execute()
+        cand = res_insert.data[0] if res_insert.data else new_cand
+    else:
+        cand = cand_res.data[0]
     
-    cand = cand_res.data[0]
-    cand["full_name"] = user.get("full_name", "")
-    cand["email"] = user.get("email", "")
+    user_res = supabase.table("users").select("full_name, email").eq("id", user_id).execute()
+    if user_res.data and len(user_res.data) > 0:
+        cand["full_name"] = user_res.data[0].get("full_name") or user.get("full_name", "")
+        cand["email"] = user_res.data[0].get("email") or user.get("email", "")
+    else:
+        cand["full_name"] = user.get("full_name", "")
+        cand["email"] = user.get("email", "")
     return cand
 
 
@@ -31,15 +48,42 @@ def update_profile(req: CandidateProfileUpdate, user: Dict[str, Any] = Depends(r
     supabase = get_supabase()
     user_id = user["sub"]
     
-    update_data = {k: v for k, v in req.model_dump().items() if v is not None}
+    # 1. Update user account details (full_name, email) if provided
+    user_update = {}
+    if req.full_name is not None and req.full_name.strip():
+        user_update["full_name"] = req.full_name.strip()
+    if req.email is not None and req.email.strip():
+        user_update["email"] = req.email.strip().lower()
+        
+    if user_update:
+        supabase.table("users").update(user_update).eq("id", user_id).execute()
+
+    # 2. Update candidate professional profile
+    cand_fields = ["phone", "location", "current_title", "years_of_experience", "education", "parsed_skills"]
+    cand_update = {k: getattr(req, k) for k in cand_fields if getattr(req, k) is not None}
     
-    cand_res = supabase.table("candidates").update(update_data).eq("user_id", user_id).execute()
-    if not cand_res.data:
-        raise HTTPException(status_code=404, detail="Candidate profile not found")
-    
-    updated = cand_res.data[0]
-    updated["full_name"] = user.get("full_name", "")
-    updated["email"] = user.get("email", "")
+    cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
+    if cand_res.data and len(cand_res.data) > 0:
+        if cand_update:
+            res = supabase.table("candidates").update(cand_update).eq("user_id", user_id).execute()
+            updated = res.data[0] if res.data else cand_res.data[0]
+        else:
+            updated = cand_res.data[0]
+    else:
+        cand_update["user_id"] = user_id
+        cand_update.setdefault("resume_status", "unprocessed")
+        cand_update.setdefault("parsed_skills", [])
+        res = supabase.table("candidates").insert(cand_update).execute()
+        updated = res.data[0] if res.data else cand_update
+
+    user_res = supabase.table("users").select("full_name, email").eq("id", user_id).execute()
+    if user_res.data and len(user_res.data) > 0:
+        updated["full_name"] = user_res.data[0].get("full_name", "")
+        updated["email"] = user_res.data[0].get("email", "")
+    else:
+        updated["full_name"] = req.full_name or user.get("full_name", "")
+        updated["email"] = req.email or user.get("email", "")
+
     return updated
 
 
@@ -54,7 +98,7 @@ def upload_resume(file: UploadFile = File(...), user: Dict[str, Any] = Depends(r
     # 2. In-Memory Deterministic Rule-Based Parsing (0 local files created)
     parsed_info = ResumeParser.parse_bytes(file_bytes, filename=original_name)
 
-    # 3. Update candidate database record with cloud storage pointer
+    # 3. Update or create candidate database record with cloud storage pointer
     update_payload = {
         "resume_filename": original_name,
         "resume_url": cloud_resume_url,
@@ -68,13 +112,28 @@ def upload_resume(file: UploadFile = File(...), user: Dict[str, Any] = Depends(r
     if parsed_info.get("phone"):
         update_payload["phone"] = parsed_info["phone"]
 
-    cand_res = supabase.table("candidates").update(update_payload).eq("user_id", user_id).execute()
+    cand_check = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
+    if cand_check.data and len(cand_check.data) > 0:
+        cand_res = supabase.table("candidates").update(update_payload).eq("user_id", user_id).execute()
+        saved_cand = cand_res.data[0] if cand_res.data else update_payload
+    else:
+        update_payload["user_id"] = user_id
+        cand_res = supabase.table("candidates").insert(update_payload).execute()
+        saved_cand = cand_res.data[0] if cand_res.data else update_payload
     
+    user_res = supabase.table("users").select("full_name, email").eq("id", user_id).execute()
+    if user_res.data and len(user_res.data) > 0:
+        saved_cand["full_name"] = user_res.data[0].get("full_name", "")
+        saved_cand["email"] = user_res.data[0].get("email", "")
+    else:
+        saved_cand["full_name"] = user.get("full_name", "")
+        saved_cand["email"] = user.get("email", "")
+
     return {
         "message": "Resume processed and stored directly in cloud Supabase",
         "cloud_url": cloud_resume_url,
         "parsed_info": parsed_info,
-        "profile": cand_res.data[0] if cand_res.data else update_payload
+        "profile": saved_cand
     }
 
 

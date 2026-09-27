@@ -30,7 +30,7 @@ class Settings:
     # Upload settings
     UPLOAD_DIR: Path = BASE_DIR / os.getenv("UPLOAD_DIR", "uploads/resumes")
     MAX_FILE_SIZE_MB: int = int(os.getenv("MAX_FILE_SIZE_MB", 10))
-    ALLOWED_EXTENSIONS: set = {".pdf", ".docx"}
+    ALLOWED_EXTENSIONS: set = {".pdf", ".docx", ".doc"}
 
     @classmethod
     def is_supabase_configured(cls) -> bool:

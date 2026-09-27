@@ -10,7 +10,11 @@ import {
   MoreVertical,
   ArrowRight,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  User,
+  Mail,
+  Phone,
+  Save
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
 
@@ -22,6 +26,13 @@ export default function UploadResumePage() {
   const [dragOver, setDragOver] = useState(false);
   const fileInputRef = useRef(null);
 
+  // Candidate Details State (Auto-fetched & Editable)
+  const [candidateName, setCandidateName] = useState('');
+  const [candidateEmail, setCandidateEmail] = useState('');
+  const [candidatePhone, setCandidatePhone] = useState('');
+  const [savingDetails, setSavingDetails] = useState(false);
+  const [detailsSavedMsg, setDetailsSavedMsg] = useState('');
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -30,15 +41,41 @@ export default function UploadResumePage() {
     try {
       const p = await CandidateAPI.getProfile();
       setProfile(p);
+      if (p) {
+        setCandidateName(p.full_name || '');
+        setCandidateEmail(p.email || '');
+        setCandidatePhone(p.phone || '');
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
+  const handleUpdateDetails = async (e) => {
+    e?.preventDefault();
+    try {
+      setSavingDetails(true);
+      setError(null);
+      await CandidateAPI.updateProfile({
+        full_name: candidateName,
+        email: candidateEmail,
+        phone: candidatePhone
+      });
+      setDetailsSavedMsg('Candidate details successfully updated!');
+      setTimeout(() => setDetailsSavedMsg(''), 3000);
+      await loadProfile();
+    } catch (err) {
+      setError(err.message || 'Failed to update candidate details');
+    } finally {
+      setSavingDetails(false);
+    }
+  };
+
   const handleFileSelect = async (file) => {
     if (!file) return;
-    if (!file.name.endsWith('.pdf') && !file.name.endsWith('.docx')) {
-      setError('Please upload a valid PDF or DOCX resume document.');
+    const nameLower = (file.name || '').toLowerCase();
+    if (!nameLower.endsWith('.pdf') && !nameLower.endsWith('.docx') && !nameLower.endsWith('.doc')) {
+      setError('Please upload a valid PDF, DOC, or DOCX resume document.');
       return;
     }
 
@@ -84,12 +121,68 @@ export default function UploadResumePage() {
         </div>
       )}
 
+      {detailsSavedMsg && (
+        <div style={{ backgroundColor: '#ecfdf5', color: '#059669', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+          <CheckCircle2 size={16} />
+          <span>{detailsSavedMsg}</span>
+        </div>
+      )}
+
       {uploadProgress && (
         <div style={{ backgroundColor: '#f0fdf4', color: '#15803d', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
           <CheckCircle2 size={16} />
           <span>{uploadProgress}</span>
         </div>
       )}
+
+      {/* Candidate Profile Details (Auto-fetched & Editable) */}
+      <div className="card" style={{ marginBottom: '20px', padding: '20px' }}>
+        <h3 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <User size={18} color="#2563eb" /> Candidate Information (Auto-Fetched & Editable)
+        </h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '14px', alignItems: 'flex-end' }}>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ fontSize: '12px' }}>Full Name</label>
+            <input 
+              type="text" 
+              className="form-input" 
+              value={candidateName} 
+              onChange={(e) => setCandidateName(e.target.value)} 
+              placeholder="Candidate Name" 
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ fontSize: '12px' }}>Email Address</label>
+            <input 
+              type="email" 
+              className="form-input" 
+              value={candidateEmail} 
+              onChange={(e) => setCandidateEmail(e.target.value)} 
+              placeholder="candidate@example.com" 
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <label className="form-label" style={{ fontSize: '12px' }}>Phone Number</label>
+            <input 
+              type="text" 
+              className="form-input" 
+              value={candidatePhone} 
+              onChange={(e) => setCandidatePhone(e.target.value)} 
+              placeholder="+91 9876543210" 
+            />
+          </div>
+          <button 
+            type="button" 
+            className="choose-btn" 
+            disabled={savingDetails} 
+            onClick={handleUpdateDetails}
+            style={{ margin: 0, height: '42px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+          >
+            <Save size={16} />
+            {savingDetails ? 'Saving...' : 'Save Details'}
+          </button>
+        </div>
+      </div>
 
       {/* Drag & Drop Zone */}
       <div 
@@ -103,7 +196,7 @@ export default function UploadResumePage() {
           type="file" 
           ref={fileInputRef} 
           style={{ display: 'none' }} 
-          accept=".pdf,.docx"
+          accept=".pdf,.docx,.doc,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
           onChange={(e) => handleFileSelect(e.target.files[0])}
         />
         <div className="cloud-icon-circle">
@@ -122,7 +215,7 @@ export default function UploadResumePage() {
         >
           {loading ? 'Processing...' : 'Choose File'}
         </button>
-        <p className="supported-text">Supported formats: PDF, DOCX</p>
+        <p className="supported-text">Supported formats: PDF, DOCX, DOC</p>
       </div>
 
       {/* How it Works Section */}

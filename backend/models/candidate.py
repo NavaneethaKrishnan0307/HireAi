@@ -2,6 +2,8 @@ from typing import List, Optional, Any, Dict
 from pydantic import BaseModel, EmailStr, Field
 
 class CandidateProfileUpdate(BaseModel):
+    full_name: Optional[str] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
     current_title: Optional[str] = None
