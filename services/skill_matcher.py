@@ -1,25 +1,47 @@
-from typing import List, Dict, Any, Set
+from typing import List, Dict, Any, Set, Optional
 
 class SkillMatcher:
     """
     Deterministic rule-based skill comparison and taxonomy matching engine.
+    Normalizes synonymous skill nomenclature to eliminate false negatives.
     """
 
     # Skill alias normalization mapping (e.g. JS -> JavaScript, Postgres -> PostgreSQL)
     SKILL_ALIASES = {
         "js": "javascript",
+        "es6": "javascript",
+        "ts": "typescript",
         "react.js": "react",
         "reactjs": "react",
         "node": "node.js",
         "nodejs": "node.js",
+        "expressjs": "express",
+        "express.js": "express",
+        "vuejs": "vue",
+        "vue.js": "vue",
+        "nextjs": "next.js",
         "postgres": "postgresql",
         "psql": "postgresql",
         "py": "python",
+        "python3": "python",
         "aws cloud": "aws",
         "amazon web services": "aws",
+        "gcp": "google cloud",
+        "google cloud platform": "google cloud",
         "k8s": "kubernetes",
         "spring boot": "spring",
-        "golang": "go"
+        "springboot": "spring",
+        "golang": "go",
+        "mongo": "mongodb",
+        "tailwind": "tailwindcss",
+        "ci cd": "ci/cd",
+        "cicd": "ci/cd",
+        "rest": "rest apis",
+        "restful apis": "rest apis",
+        "restful": "rest apis",
+        "graphql": "graphql",
+        "html5": "html",
+        "css3": "css"
     }
 
     @classmethod

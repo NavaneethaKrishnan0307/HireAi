@@ -7,19 +7,23 @@ from docx import Document
 # Comprehensive curated skill dictionary for deterministic rule-based knowledge representation
 KNOWN_SKILLS = [
     # Programming Languages
-    "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", "C", "Go", "Rust", "Ruby", "PHP", "Kotlin", "Swift", "Scala", "R",
-    # Frameworks & Libraries
+    "Python", "Java", "JavaScript", "TypeScript", "C++", "C#", "C", "Go", "Rust", "Ruby", "PHP", "Kotlin", "Swift", "Scala", "R", "Dart", "Solidity",
+    # Frontend Technologies & Frameworks
     "FastAPI", "Django", "Flask", "React", "React.js", "Vue", "Vue.js", "Angular", "Node.js", "Express", "Spring", "Spring Boot",
-    "Next.js", "Redux", "TailwindCSS", "Bootstrap", "HTML", "CSS", "HTML/CSS", "GraphQL", "REST APIs", "gRPC",
-    # Databases & Caching
-    "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite", "Oracle", "Cassandra", "DynamoDB", "Elasticsearch",
-    # Cloud, DevOps & Tools
+    "Next.js", "Nuxt.js", "Svelte", "Redux", "TailwindCSS", "Bootstrap", "HTML", "CSS", "HTML/CSS", "GraphQL", "REST APIs", "gRPC", "Webpack", "Vite",
+    # Databases, Caching & Data Stores
+    "SQL", "PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite", "Oracle", "Cassandra", "DynamoDB", "Elasticsearch", "Supabase", "Firebase", "Neo4j",
+    # Cloud, DevOps & Infrastructure
     "AWS", "Azure", "GCP", "Google Cloud", "Docker", "Kubernetes", "Git", "GitHub", "GitLab", "CI/CD", "Terraform", "Linux",
-    "Jira", "Jenkins", "Kafka", "RabbitMQ", "Microservices"
+    "Jira", "Jenkins", "Kafka", "RabbitMQ", "Microservices", "Serverless", "Nginx", "Ansible",
+    # AI / Machine Learning / Data Science
+    "Machine Learning", "Deep Learning", "TensorFlow", "PyTorch", "Scikit-learn", "Pandas", "NumPy", "OpenCV", "NLP", "LLM",
+    # Testing & Mobile
+    "PyTest", "Jest", "Cypress", "Selenium", "Flutter", "React Native", "Android", "iOS"
 ]
 
 EDUCATION_PATTERNS = [
-    (r"\b(Ph\.?D|Doctor of Philosophy)\b", "Ph.D"),
+    (r"\b(Ph\.?D|Doctor of Philosophy|Doctorate)\b", "Ph.D"),
     (r"\b(M\.?Tech|Master of Technology)\b", "M.Tech"),
     (r"\b(M\.?S|Master of Science)\b", "M.S."),
     (r"\b(M\.?C\.?A|Master of Computer Applications)\b", "MCA"),
@@ -39,7 +43,7 @@ class ResumeParser:
 
     @classmethod
     def extract_text(cls, file_path: Path) -> str:
-        """Extract raw text from PDF or DOCX file."""
+        """Extract raw text from PDF or DOCX file with graceful fallbacks."""
         ext = file_path.suffix.lower()
         text = ""
         
@@ -51,8 +55,7 @@ class ResumeParser:
                         extracted = page.extract_text()
                         if extracted:
                             text += extracted + "\n"
-            except Exception as e:
-                # Fallback to pdfplumber if available
+            except Exception:
                 try:
                     import pdfplumber
                     with pdfplumber.open(file_path) as pdf:
@@ -99,15 +102,12 @@ class ResumeParser:
         """Extract candidate name heuristic from top non-empty lines."""
         lines = [line.strip() for line in text.splitlines() if line.strip()]
         for line in lines[:5]:
-            # Ignore lines containing email, URLs, or pure numbers
             if "@" in line or "http" in line or "www" in line or "resume" in line.lower() or "curriculum" in line.lower():
                 continue
-            # A candidate name is usually 2-4 words, alphabetic
             words = line.split()
             if 1 < len(words) <= 4 and all(w.isalpha() or w in ['.', ','] for w in words):
                 return line.title()
         
-        # Fallback heuristic: derive from email prefix if clean
         if email:
             prefix = email.split('@')[0]
             name_parts = re.split(r'[._-]', prefix)
@@ -119,10 +119,7 @@ class ResumeParser:
     def extract_skills(cls, text: str) -> List[str]:
         """Deterministic skill extraction matching against known skill vocabulary."""
         found_skills = set()
-        text_lower = text.lower()
-
         for skill in KNOWN_SKILLS:
-            # Word boundary regex search to avoid substring collisions (e.g. 'C' in 'CSS' or 'Go' in 'Google')
             escaped_skill = re.escape(skill)
             pattern = rf'(?i)(?:\b|(?<=[^a-zA-Z0-9]))' + escaped_skill + rf'(?:\b|(?=[^a-zA-Z0-9]))'
             if re.search(pattern, text):
@@ -135,7 +132,6 @@ class ResumeParser:
         """Extract education credentials using hierarchical pattern checks."""
         for pattern, edu_title in EDUCATION_PATTERNS:
             if re.search(pattern, text, re.IGNORECASE):
-                # Search for field of study e.g. Computer Science
                 if re.search(r'Computer\s*Science|Information\s*Technology|ECE|CSE|IT|Mechanical|Electrical', text, re.IGNORECASE):
                     return f"{edu_title} in Computer Science / IT"
                 return edu_title
@@ -144,7 +140,6 @@ class ResumeParser:
     @classmethod
     def extract_experience_years(cls, text: str) -> float:
         """Rule-based heuristic extraction of work experience in years."""
-        # 1. Match explicit phrases like "X years of experience", "X+ yrs exp"
         exp_patterns = [
             r'(\d+(?:\.\d+)?)\+?\s*(?:years|yrs)(?:\s+of)?\s+experience',
             r'experience\s*:\s*(\d+(?:\.\d+)?)\+?\s*(?:years|yrs)',
@@ -158,7 +153,6 @@ class ResumeParser:
                 except ValueError:
                     pass
 
-        # 2. Count distinct work duration year ranges (e.g. 2021 - 2024)
         year_ranges = re.findall(r'(20\d\d)\s*(?:-|to|–)\s*(20\d\d|present|current)', text, re.IGNORECASE)
         total_calculated = 0.0
         current_year = 2026
@@ -171,7 +165,7 @@ class ResumeParser:
         if total_calculated > 0:
             return round(min(total_calculated, 20.0), 1)
 
-        return 1.5 # Sensible default if experience cannot be determined
+        return 1.5
 
     @classmethod
     def parse_file(cls, file_path: Path) -> Dict[str, Any]:
