@@ -278,11 +278,114 @@ export default function ResumeAnalyzerPage() {
             <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>
               {report.authenticity_verification && !report.authenticity_verification.is_valid_resume 
                 ? 'Non-resume document structure detected. Upload a standard resume format.' 
-                : 'Your resume was parsed with deterministic rule-based explainable AI.'}
+                : 'Deterministic multi-pillar applicant tracking system audit.'}
             </p>
           </div>
         </div>
       </div>
+
+      {/* 5 Core ATS Pillar Methodology Gauges */}
+      {report.ats_pillars && (
+        <div className="card" style={{ marginBottom: '24px', padding: '22px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <TrendingUp size={18} color="#2563eb" /> 5-Pillar ATS Methodology Evaluation
+          </h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+            {[
+              { key: 'format_parsability', label: '1. Format & Parsability', desc: 'Section headings & contact data', val: report.ats_pillars.format_parsability },
+              { key: 'keyword_density', label: '2. Keyword Density', desc: 'Skill taxonomy & stack coverage', val: report.ats_pillars.keyword_density },
+              { key: 'action_impact', label: '3. Action & Metrics', desc: 'Power verbs & quantified impact', val: report.ats_pillars.action_impact },
+              { key: 'brevity_readability', label: '4. Brevity & Readability', desc: 'Length & layout clarity', val: report.ats_pillars.brevity_readability },
+              { key: 'authenticity_integrity', label: '5. Authenticity Integrity', desc: 'Document structure & identity match', val: report.ats_pillars.authenticity_integrity }
+            ].map(p => {
+              const pScore = p.val || 50;
+              const pColor = pScore >= 80 ? '#10b981' : pScore >= 60 ? '#2563eb' : pScore >= 40 ? '#f59e0b' : '#ef4444';
+              return (
+                <div key={p.key} style={{ backgroundColor: '#f8fafc', padding: '14px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#1e293b' }}>{p.label}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '800', color: pColor }}>{pScore}%</span>
+                  </div>
+                  <div style={{ height: '6px', backgroundColor: '#e2e8f0', borderRadius: '3px', overflow: 'hidden', marginBottom: '6px' }}>
+                    <div style={{ height: '100%', width: `${pScore}%`, backgroundColor: pColor, borderRadius: '3px', transition: 'width 0.5s ease-in-out' }} />
+                  </div>
+                  <p style={{ fontSize: '11px', color: '#64748b', margin: 0 }}>{p.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Interactive Line-by-Line Document Inspector */}
+      {report.line_analysis && report.line_analysis.length > 0 && (
+        <div className="card" style={{ marginBottom: '24px', padding: '22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <FileText size={18} color="#7c3aed" /> Line-by-Line Document Inspection & STAR Recommendations
+              </h3>
+              <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
+                Live annotation of every bullet point. Identifies passive phrasing, metrics, power verbs, and provides STAR rewrite suggestions.
+              </p>
+            </div>
+            {report.line_metrics_summary && (
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ backgroundColor: '#ecfdf5', color: '#047857', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
+                  ✓ {report.line_metrics_summary.metric_lines} Metric Statements
+                </span>
+                <span style={{ backgroundColor: '#eff6ff', color: '#1d4ed8', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
+                  ⚡ {report.line_metrics_summary.action_verbs} Power Verbs
+                </span>
+                {report.line_metrics_summary.passive_phrases > 0 && (
+                  <span style={{ backgroundColor: '#fef2f2', color: '#b91c1c', padding: '4px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700' }}>
+                    ⚠️ {report.line_metrics_summary.passive_phrases} Passive Phrasings
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '420px', overflowY: 'auto', paddingRight: '4px' }}>
+            {report.line_analysis.map((line, idx) => {
+              if (line.category === 'SECTION_HEADER') {
+                return (
+                  <div key={idx} style={{ backgroundColor: '#f1f5f9', padding: '8px 12px', borderRadius: '6px', fontWeight: '800', fontSize: '12px', color: '#334155', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: idx > 0 ? '8px' : '0' }}>
+                    § {line.text}
+                  </div>
+                );
+              }
+
+              const badgeBg = line.badge_color === 'green' ? '#ecfdf5' : line.badge_color === 'blue' ? '#eff6ff' : line.badge_color === 'red' ? '#fef2f2' : line.badge_color === 'cyan' ? '#ecfeff' : '#f8fafc';
+              const badgeTextColor = line.badge_color === 'green' ? '#047857' : line.badge_color === 'blue' ? '#1d4ed8' : line.badge_color === 'red' ? '#b91c1c' : line.badge_color === 'cyan' ? '#0e7490' : '#64748b';
+              const borderColor = line.badge_color === 'green' ? '#a7f3d0' : line.badge_color === 'blue' ? '#bfdbfe' : line.badge_color === 'red' ? '#fecaca' : '#e2e8f0';
+
+              return (
+                <div key={idx} style={{ border: `1px solid ${borderColor}`, borderRadius: '8px', padding: '10px 14px', backgroundColor: line.badge_color === 'red' ? '#fffbfb' : '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px', marginBottom: '4px' }}>
+                    <p style={{ margin: 0, fontSize: '13px', color: '#1e293b', fontWeight: '500', lineHeight: 1.4 }}>
+                      <span style={{ color: '#94a3b8', fontSize: '11px', marginRight: '6px' }}>L{line.line_number}</span>
+                      {line.text}
+                    </p>
+                    <span style={{ backgroundColor: badgeBg, color: badgeTextColor, border: `1px solid ${borderColor}`, padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      {line.badge}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
+                    <span style={{ fontSize: '11px', color: '#64748b' }}>{line.feedback}</span>
+                    {line.suggestion && (
+                      <span style={{ fontSize: '11px', color: '#b91c1c', backgroundColor: '#fef2f2', padding: '2px 6px', borderRadius: '4px', fontStyle: 'italic' }}>
+                        💡 Suggestion: {line.suggestion}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Strengths & Weaknesses 2-Column Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '20px', marginBottom: '24px' }}>

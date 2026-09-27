@@ -44,9 +44,23 @@ EDUCATION_PATTERNS = [
     (r"\b(Bachelor(?:'s)? Degree|Master(?:'s)? Degree)\b", "Graduate Degree")
 ]
 
+POWER_ACTION_VERBS = [
+    "architected", "engineered", "developed", "designed", "implemented", "optimized",
+    "spearheaded", "orchestrated", "deployed", "automated", "audited", "secured",
+    "configured", "refactored", "built", "accelerated", "enhanced", "resolved",
+    "integrated", "executed", "analyzed", "reduced", "increased", "boosted",
+    "scaled", "streamlined", "created", "administered", "investigated", "mitigated"
+]
+
+PASSIVE_WEAK_PHRASES = [
+    "worked on", "responsible for", "helped with", "assisted in", "participated in",
+    "involved in", "handled", "tasked with", "was part of", "did some", "familiar with",
+    "learning about"
+]
+
 class ResumeParser:
     """
-    Deterministic rule-based document parser.
+    Deterministic rule-based document parser and line-by-line inspection engine.
     Extracts text and structured metadata from PDF and DOCX in-memory or from file paths.
     Requires ZERO local disk storage.
     """
@@ -106,7 +120,7 @@ class ResumeParser:
     @classmethod
     def extract_phone(cls, text: str) -> Optional[str]:
         """Extract phone number using regex."""
-        phone_pattern = r'(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[6789]\d{9}|(?:\+?1\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?([2-9]1[02-9]|[2-9][02-9]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4})'
+        phone_pattern = r'(?:(?:\+|0{0,2})91(\s*[\-]\s*)?|[0]?)?[6789]\d{9}|(?:\+?1\s*(?:[.-]\s*)?)?(?:\(\s*([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*\)|([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9]))\s*(?:[.-]\s*)?([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-8][02-9])\s*(?:[.-]\s*)?([2-9]1[02-9]|[2-9][02-8]1|[2-9][02-9]{2})\s*(?:[.-]\s*)?([0-9]{4})'
         match = re.search(phone_pattern, text)
         if match:
             clean = re.sub(r'[^\d+]', '', match.group(0))
@@ -323,6 +337,124 @@ class ResumeParser:
         }
 
     @classmethod
+    def analyze_resume_lines(cls, text: str) -> List[Dict[str, Any]]:
+        """
+        Perform in-depth line-by-line inspection of resume content.
+        Evaluates impact, action verbs, quantifiable metrics, skills detected,
+        and provides instant actionable STAR rewrite guidance.
+        """
+        if not text:
+            return []
+
+        raw_lines = [l.strip() for l in text.splitlines() if l.strip()]
+        analyzed_lines = []
+
+        metric_regex = r'(\b\d+(?:\.\d+)?%|\b\d+\+|\$\d+[\d,]*|\b\d+\s*(?:ms|sec|hours|users|endpoints|servers|apis|projects|clients|cves|vulnerabilities)\b|\b\d+x\b)'
+
+        for idx, line in enumerate(raw_lines, start=1):
+            if len(line) < 4:
+                continue
+
+            l_lower = line.lower()
+            
+            # Check for heading
+            if len(line.split()) <= 3 and any(h in l_lower for h in ["education", "experience", "projects", "skills", "summary", "objective", "certifications", "contact"]):
+                analyzed_lines.append({
+                    "line_number": idx,
+                    "text": line,
+                    "category": "SECTION_HEADER",
+                    "badge": "Header",
+                    "badge_color": "purple",
+                    "impact_level": "NEUTRAL",
+                    "action_verb": None,
+                    "has_metric": False,
+                    "matched_skills": [],
+                    "feedback": "Standard resume section header"
+                })
+                continue
+
+            # Detect metric
+            metric_match = re.search(metric_regex, line, re.IGNORECASE)
+            has_metric = bool(metric_match)
+            metric_found = metric_match.group(0) if metric_match else None
+
+            # Detect action verb
+            action_verb_found = None
+            for verb in POWER_ACTION_VERBS:
+                if re.search(rf'\b{verb}\b', l_lower):
+                    action_verb_found = verb.capitalize()
+                    break
+
+            # Detect passive phrase
+            passive_phrase_found = None
+            for phrase in PASSIVE_WEAK_PHRASES:
+                if phrase in l_lower:
+                    passive_phrase_found = phrase.capitalize()
+                    break
+
+            # Detect technical skills on this line
+            line_skills = []
+            for s in KNOWN_SKILLS:
+                pattern = rf'(?i)(?:\b|(?<=[^a-zA-Z0-9]))' + re.escape(s) + rf'(?:\b|(?=[^a-zA-Z0-9]))'
+                if re.search(pattern, line):
+                    line_skills.append(s)
+
+            # Determine line category & rewrite suggestion
+            if has_metric and action_verb_found:
+                category = "STRONG_METRIC_IMPACT"
+                badge = "High Impact Result"
+                badge_color = "green"
+                impact_level = "HIGH"
+                feedback = f"Excellent! Combines power action verb ('{action_verb_found}') with measurable metric ('{metric_found}')."
+                suggestion = None
+            elif action_verb_found:
+                category = "ACTION_ORIENTED"
+                badge = "Strong Action Verb"
+                badge_color = "blue"
+                impact_level = "MEDIUM"
+                feedback = f"Good action verb ('{action_verb_found}'). Consider quantifying the result with a metric (e.g. % improvement or count)."
+                suggestion = f"Enhance with a quantifiable metric (e.g., '{line} - resulting in ~30% improvement')."
+            elif passive_phrase_found:
+                category = "WEAK_PASSIVE"
+                badge = "Passive / Weak Verb"
+                badge_color = "red"
+                impact_level = "LOW"
+                feedback = f"Passive phrasing ('{passive_phrase_found}') weakens your accomplishments. Replace with an active power verb."
+                suggestion = f"Replace '{passive_phrase_found}' with a power verb (e.g., 'Implemented', 'Engineered', 'Spearheaded')."
+            elif line_skills:
+                category = "KEYWORD_SKILL"
+                badge = "Skill Keywords"
+                badge_color = "cyan"
+                impact_level = "MEDIUM"
+                feedback = f"Contains technical keywords: {', '.join(line_skills[:3])}."
+                suggestion = None
+            else:
+                category = "DESCRIPTIVE"
+                badge = "Descriptive"
+                badge_color = "gray"
+                impact_level = "NEUTRAL"
+                feedback = "General descriptive statement."
+                suggestion = None
+
+            analyzed_lines.append({
+                "line_number": idx,
+                "text": line,
+                "category": category,
+                "badge": badge,
+                "badge_color": badge_color,
+                "impact_level": impact_level,
+                "action_verb": action_verb_found,
+                "passive_phrase": passive_phrase_found,
+                "has_metric": has_metric,
+                "metric_found": metric_found,
+                "matched_skills": line_skills,
+                "feedback": feedback,
+                "suggestion": suggestion
+            })
+
+        return analyzed_lines
+
+    @classmethod
     def parse_bytes(cls, file_bytes: bytes, filename: str) -> Dict[str, Any]:
         """Perform in-memory parsing from raw bytes without writing to disk."""
         raw_text = cls.extract_text(file_bytes, filename=filename)
@@ -334,6 +466,7 @@ class ResumeParser:
         experience_years = cls.extract_experience_years(raw_text)
         current_title = cls.extract_current_title(raw_text)
         doc_validation = cls.validate_resume_document(raw_text)
+        line_analysis = cls.analyze_resume_lines(raw_text)
 
         return {
             "name": name,
@@ -344,6 +477,7 @@ class ResumeParser:
             "years_of_experience": experience_years,
             "current_title": current_title,
             "document_validation": doc_validation,
+            "line_analysis": line_analysis,
             "raw_text": raw_text,
             "extracted_text_preview": raw_text[:500] if raw_text else "",
             "filename": filename,
@@ -362,6 +496,7 @@ class ResumeParser:
         experience_years = cls.extract_experience_years(raw_text)
         current_title = cls.extract_current_title(raw_text)
         doc_validation = cls.validate_resume_document(raw_text)
+        line_analysis = cls.analyze_resume_lines(raw_text)
 
         return {
             "name": name,
@@ -372,6 +507,7 @@ class ResumeParser:
             "years_of_experience": experience_years,
             "current_title": current_title,
             "document_validation": doc_validation,
+            "line_analysis": line_analysis,
             "raw_text": raw_text,
             "extracted_text_preview": raw_text[:500] if raw_text else "",
             "filename": file_path.name,

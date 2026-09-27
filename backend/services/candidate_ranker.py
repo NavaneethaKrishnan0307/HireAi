@@ -312,37 +312,83 @@ class CandidateRanker:
         )
         is_cyber = bool(cyber_skills) or "cyber" in current_title.lower() or "security" in current_title.lower()
 
-        # 4. ATS & Overall Health Scoring Formula
-        if not is_valid_doc:
-            ats_score = doc_validation.get("authenticity_score", 20)
-        else:
-            ats_score = 45  # Base score for valid document parsing & structure
-            if len(skills) >= 3:
-                ats_score += 15
-            if len(skills) >= 6:
-                ats_score += 15
-            if len(skills) >= 10:
-                ats_score += 5
-                
-            if is_intern_or_student:
-                if education and education != "Undergraduate":
-                    ats_score += 10
-                else:
-                    ats_score += 5
-                if cyber_skills or languages or frameworks:
-                    ats_score += 10
-            else:
-                if experience >= 1.0:
-                    ats_score += 10
-                if education and education != "Undergraduate":
-                    ats_score += 5
+        # 4. ATS Multi-Pillar Scoring Methodology
+        line_analysis = parsed_data.get("line_analysis") or []
+        if not line_analysis and raw_text:
+            line_analysis = ResumeParser.analyze_resume_lines(raw_text)
 
-            if phone and len(phone) >= 8:
-                ats_score += 5
-            if email and "@" in email:
-                ats_score += 5
-                
-            ats_score = min(100, max(35, ats_score))
+        word_count = doc_validation.get("word_count") or (len(raw_text.split()) if raw_text else 150)
+        detected_sections = doc_validation.get("detected_sections", [])
+
+        # Pillar 1: Format & Parsability (0-100)
+        p_format = 30 + (len(detected_sections) * 15)
+        if email and "@" in email:
+            p_format += 5
+        if phone and len(phone) >= 8:
+            p_format += 5
+        p_format = min(100, max(20, p_format))
+
+        # Pillar 2: Technical Keyword Density (0-100)
+        p_keywords = 25 + (len(skills) * 8)
+        categories_represented = sum([
+            bool(cyber_skills), bool(languages), bool(frameworks),
+            bool(databases_cloud), bool(ai_data)
+        ])
+        if categories_represented >= 2:
+            p_keywords += 10
+        if categories_represented >= 3:
+            p_keywords += 10
+        p_keywords = min(100, max(20, p_keywords))
+
+        # Pillar 3: Action & Measurable Impact (0-100)
+        metric_lines_count = sum(1 for l in line_analysis if l.get("has_metric"))
+        action_verbs_count = sum(1 for l in line_analysis if l.get("action_verb"))
+        passive_lines_count = sum(1 for l in line_analysis if l.get("passive_phrase"))
+        total_content_lines = sum(1 for l in line_analysis if l.get("category") != "SECTION_HEADER")
+        
+        if total_content_lines > 0:
+            impact_ratio = (action_verbs_count * 1.2 + metric_lines_count * 2.0) / max(1, total_content_lines)
+            p_impact = int(min(100, max(25, 30 + (impact_ratio * 50) - (passive_lines_count * 5))))
+        else:
+            p_impact = 50 if len(skills) >= 4 else 35
+
+        # Pillar 4: Brevity & Readability Index (0-100)
+        if 250 <= word_count <= 750:
+            p_readability = 95
+        elif 150 <= word_count <= 1100:
+            p_readability = 80
+        elif 80 <= word_count <= 1500:
+            p_readability = 65
+        else:
+            p_readability = 40
+
+        # Pillar 5: Authenticity & Identity Integrity (0-100)
+        p_auth = doc_validation.get("authenticity_score", 85)
+        if name_mismatch:
+            p_auth = max(20, p_auth - 30)
+        if not is_valid_doc:
+            p_auth = min(25, p_auth)
+        p_auth = min(100, max(15, p_auth))
+
+        ats_pillars = {
+            "format_parsability": p_format,
+            "keyword_density": p_keywords,
+            "action_impact": p_impact,
+            "brevity_readability": p_readability,
+            "authenticity_integrity": p_auth
+        }
+
+        if not is_valid_doc:
+            ats_score = min(25, doc_validation.get("authenticity_score", 20))
+        else:
+            ats_score = int(
+                (p_format * 0.20) +
+                (p_keywords * 0.25) +
+                (p_impact * 0.20) +
+                (p_readability * 0.15) +
+                (p_auth * 0.20)
+            )
+            ats_score = min(100, max(25, ats_score))
 
         # 5. Seniority & Domain Classification
         if current_title:
@@ -376,6 +422,8 @@ class CandidateRanker:
             strengths.append(f"Infrastructure, OS, and Data readiness ({', '.join(databases_cloud[:3])})")
         if ai_data:
             strengths.append(f"Data Science & AI capability ({', '.join(ai_data[:3])})")
+        if metric_lines_count >= 2:
+            strengths.append(f"Strong quantification of impact with {metric_lines_count} measurable metric statements")
         if experience >= 2.0:
             strengths.append(f"Demonstrated production experience of {experience} years")
         elif is_intern_or_student and (cyber_skills or skills):
@@ -390,6 +438,12 @@ class CandidateRanker:
 
         if name_mismatch:
             weaknesses.append(f"Identity Discrepancy: Profile name is '{profile_name}' but resume header states '{resume_name}'. Update profile to verify authenticity.")
+
+        if passive_lines_count >= 1:
+            weaknesses.append(f"Detected {passive_lines_count} passive phrasing instances ('responsible for', 'worked on') - replace with strong action verbs")
+
+        if metric_lines_count == 0:
+            weaknesses.append("Zero quantifiable metrics detected; add measurable metrics (e.g. % improvement, latency reduction, user count)")
 
         if is_cyber:
             if not any(s in cyber_skills for s in ["SIEM", "SOC", "Splunk"]):
@@ -413,18 +467,18 @@ class CandidateRanker:
             weaknesses.append("Continue maintaining updated project artifacts and latest security/dev tool versions")
 
         # 7. Actionable Roadmap
+        recommendations = []
         if is_cyber or is_intern_or_student:
-            recommendations = [
-                "Document hands-on lab environments, CTF write-ups (TryHackMe / HackTheBox), or GitHub security tools",
-                "Highlight industry standard certifications (e.g. CompTIA Security+, CEH, or AWS Cloud Practitioner)",
-                "Quantify vulnerability assessment and project outcomes (e.g., 'Audited 15+ network endpoints detecting 8 CVE vulnerabilities')"
-            ]
+            recommendations.append("Document hands-on lab environments, CTF write-ups (TryHackMe / HackTheBox), or GitHub security tools")
+            recommendations.append("Highlight industry standard certifications (e.g. CompTIA Security+, CEH, or AWS Cloud Practitioner)")
+            recommendations.append("Quantify vulnerability assessment outcomes (e.g., 'Audited 15+ network endpoints detecting 8 CVE vulnerabilities')")
         else:
-            recommendations = [
-                "Quantify project achievements with measurable metrics (e.g. 'Improved query latency by 35%')",
-                "Add high-demand cloud technologies (Docker, AWS, Git) to improve ATS ranking for engineering roles",
-                "Ensure certifications and latest technical tools are prominently listed in a dedicated skills section"
-            ]
+            recommendations.append("Quantify project achievements with measurable metrics (e.g. 'Improved query latency by 35%')")
+            recommendations.append("Add high-demand cloud technologies (Docker, AWS, Git) to improve ATS ranking for engineering roles")
+            recommendations.append("Ensure certifications and latest technical tools are prominently listed in a dedicated skills section")
+
+        if passive_lines_count >= 1:
+            recommendations.append("Review Line-by-Line Inspection below and convert passive phrases into STAR-formatted power statements")
 
         # 8. Job-Specific Fit Matrix across Open Platform with Strict Domain Analysis
         job_matrix = []
@@ -453,6 +507,14 @@ class CandidateRanker:
             "email": email,
             "phone": phone,
             "ats_health_score": ats_score,
+            "ats_pillars": ats_pillars,
+            "line_analysis": line_analysis,
+            "line_metrics_summary": {
+                "total_lines": len(line_analysis),
+                "metric_lines": metric_lines_count,
+                "action_verbs": action_verbs_count,
+                "passive_phrases": passive_lines_count
+            },
             "seniority_level": seniority,
             "total_skills_count": len(skills),
             "authenticity_verification": {
