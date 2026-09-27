@@ -89,7 +89,30 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
+        {/* Quick Demo Sign-in Shortcuts */}
+        <div style={{ marginTop: '20px', padding: '14px', backgroundColor: '#f8fafc', borderRadius: '10px', border: '1px dashed #cbd5e1' }}>
+          <p style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', margin: '0 0 8px 0', letterSpacing: '0.05em' }}>
+            ⚡ 1-Click Demo Profiles
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => { setEmail('joe@example.com'); setPassword('password123'); }}
+              style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '600', color: '#1d4ed8', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
+            >
+              👤 Fill: <strong>Joe</strong> (joe@example.com / password123)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('rahul.sharma@email.com'); setPassword('password123'); }}
+              style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '600', color: '#475569', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
+            >
+              👤 Fill: <strong>Rahul Sharma</strong> (rahul.sharma@email.com)
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
           Don't have an account?{' '}
           <Link to="/register" style={{ color: '#1d68f6', fontWeight: '600' }}>Register here</Link>
         </div>

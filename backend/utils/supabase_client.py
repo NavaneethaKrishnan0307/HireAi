@@ -156,6 +156,14 @@ class MockSupabaseClient:
                 "role": "candidate",
                 "full_name": "John Doe",
                 "avatar_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80"
+            },
+            {
+                "id": "9655cd40-8424-4204-94ba-77a433bfe923",
+                "email": "joe@example.com",
+                "password_hash": "$2b$12$K.zT7rZfN7bS09h7Z8q2UOn5Kmsr5tGk8RkH0O1F8e.xT9i1s4YWW",
+                "role": "candidate",
+                "full_name": "Joe",
+                "avatar_url": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
             }
         ]
 
@@ -220,6 +228,19 @@ class MockSupabaseClient:
                 "resume_status": "processed",
                 "resume_url": "/uploads/resumes/John_Doe_Resume.pdf",
                 "parsed_skills": ["Python", "SQL", "FastAPI", "React", "Git"]
+            },
+            {
+                "id": "8f53fa1e-997e-4959-bde1-f84b718296b8",
+                "user_id": "9655cd40-8424-4204-94ba-77a433bfe923",
+                "phone": "+91 9876543299",
+                "location": "Bangalore",
+                "current_title": "Cybersecurity Intern",
+                "years_of_experience": 0.5,
+                "education": "B.Tech in Information Security",
+                "resume_filename": "Joe_Resume.pdf",
+                "resume_status": "processed",
+                "resume_url": "/uploads/resumes/Joe_Resume.pdf",
+                "parsed_skills": ["Cybersecurity", "Network Security", "Wireshark", "Nmap", "Linux"]
             }
         ]
 
