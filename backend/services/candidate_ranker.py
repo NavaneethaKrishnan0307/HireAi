@@ -50,7 +50,7 @@ class CandidateRanker:
     ) -> Dict[str, Any]:
         """
         Evaluate a candidate profile against a job specification with dynamic weights.
-        Returns explainable score breakdown and decision log.
+        Returns explainable score breakdown, strict domain misalignment penalties, and decision log.
         """
         weights = cls.normalize_weights(custom_weights)
 
@@ -80,17 +80,40 @@ class CandidateRanker:
         cert_res = RuleEngine.evaluate_certifications(cand_skills, job_certs)
         cert_score = cert_res["score"]
 
-        # Calculate final weighted composite score
-        overall_score = round(
-            (skill_score * weights["skills"]) +
-            (exp_score * weights["experience"]) +
-            (edu_score * weights["education"]) +
-            (cert_score * weights["additional"]),
-            1
-        )
+        # 5. Strict Core Skill Gating & Domain Alignment Check
+        is_domain_mismatch = False
+        domain_status = "Direct Domain Fit"
+        domain_warning = None
+
+        total_req = len(job_req_skills)
+        matched_req_count = len(skill_res["matched_skills"])
+
+        if total_req >= 2 and matched_req_count == 0:
+            is_domain_mismatch = True
+            domain_status = "Critical Domain Mismatch"
+            domain_warning = f"0 of {total_req} required technical skills matched (Candidate domain differs from role requirements)."
+            raw_composite = (skill_score * weights["skills"]) + (exp_score * weights["experience"]) + (edu_score * weights["education"]) + (cert_score * weights["additional"])
+            overall_score = round(min(raw_composite * 0.15, 12.0), 1)
+        elif total_req >= 3 and matched_req_count == 1:
+            is_domain_mismatch = True
+            domain_status = "High Skill Gap"
+            domain_warning = f"Only 1 of {total_req} required skills matched."
+            raw_composite = (skill_score * weights["skills"]) + (exp_score * weights["experience"]) + (edu_score * weights["education"]) + (cert_score * weights["additional"])
+            overall_score = round(min(raw_composite * 0.45, 30.0), 1)
+        else:
+            overall_score = round(
+                (skill_score * weights["skills"]) +
+                (exp_score * weights["experience"]) +
+                (edu_score * weights["education"]) +
+                (cert_score * weights["additional"]),
+                1
+            )
 
         # Assemble list of human-readable explainable statements
         explanations = []
+        if domain_warning:
+            explanations.append(f"⚠️ {domain_warning}")
+
         for s in skill_res["matched_skills"]:
             explanations.append(f"✓ {s} skill requirement matched")
         for s in skill_res["missing_skills"]:
@@ -118,6 +141,9 @@ class CandidateRanker:
             "missing_skills": skill_res["missing_skills"],
             "preferred_matches": skill_res["matched_preferred"],
             "applied_weights": weights,
+            "is_domain_mismatch": is_domain_mismatch,
+            "domain_status": domain_status,
+            "domain_warning": domain_warning,
             "skill_gap_advice": skill_gap_advice,
             "explanations": explanations,
             "rule_results": {
@@ -186,10 +212,13 @@ class CandidateRanker:
     ) -> Dict[str, Any]:
         """
         Generate a comprehensive, enterprise-grade AI Resume Audit & Report.
-        Evaluates ATS compliance, multi-domain skill taxonomy breakdown (Cybersecurity,
-        Languages, Frameworks, Cloud & DevOps, AI/Data), experience maturity,
-        strengths, weaknesses, and cross-job fit matrix across the open platform.
+        Evaluates ATS compliance, document authenticity verification, identity match verification,
+        multi-domain skill taxonomy breakdown (Cybersecurity, Languages, Frameworks, Cloud & DevOps, AI/Data),
+        experience maturity, strengths, weaknesses, and cross-job fit matrix across the open platform.
         """
+        import re
+        from backend.services.resume_parser import ResumeParser
+
         skills = candidate_data.get("parsed_skills", []) or []
         experience = float(candidate_data.get("years_of_experience", 0.0) or 0.0)
         education = str(candidate_data.get("education", "") or "Undergraduate")
@@ -198,7 +227,44 @@ class CandidateRanker:
         email = candidate_data.get("email", "")
         full_name = candidate_data.get("full_name") or candidate_data.get("name") or "Candidate"
 
-        # 1. Categorized Skill Taxonomy (Multi-Domain)
+        parsed_data = candidate_data.get("parsed_data") or {}
+        resume_name = parsed_data.get("name") or candidate_data.get("resume_name")
+        raw_text = candidate_data.get("raw_text") or parsed_data.get("raw_text") or ""
+        doc_validation = parsed_data.get("document_validation") or {}
+
+        if raw_text and not doc_validation:
+            doc_validation = ResumeParser.validate_resume_document(raw_text)
+            if not resume_name:
+                resume_name = ResumeParser.extract_name(raw_text, email)
+
+        # 1. Identity & Profile Consistency Check
+        profile_name = full_name
+        name_mismatch = False
+        identity_status = "VERIFIED_AUTHENTIC"
+        identity_discrepancy = None
+
+        if resume_name and profile_name:
+            norm_res = re.sub(r'[^\w\s]', '', resume_name).lower().strip()
+            norm_prof = re.sub(r'[^\w\s]', '', profile_name).lower().strip()
+            
+            res_tokens = set(norm_res.split())
+            prof_tokens = set(norm_prof.split())
+
+            is_placeholder_prof = norm_prof in ["candidate", "candidate profile", "user", ""]
+            is_placeholder_res = norm_res in ["candidate", "candidate profile", "resume", ""]
+
+            if not is_placeholder_prof and not is_placeholder_res:
+                if not (res_tokens & prof_tokens):
+                    name_mismatch = True
+                    identity_status = "DISCREPANCY_DETECTED"
+                    identity_discrepancy = f"Resume document belongs to '{resume_name}', which does not match your registered profile name '{profile_name}'."
+
+        # 2. Document Authenticity Validation
+        is_valid_doc = doc_validation.get("is_valid", True)
+        if not is_valid_doc:
+            identity_status = "INVALID_NON_RESUME_DOCUMENT"
+
+        # 3. Categorized Skill Taxonomy (Multi-Domain)
         cyber_skills = [s for s in skills if s in [
             "Cybersecurity", "Network Security", "Information Security", "Ethical Hacking", 
             "Penetration Testing", "SOC", "SIEM", "Firewall", "Vulnerability Assessment", 
@@ -246,36 +312,39 @@ class CandidateRanker:
         )
         is_cyber = bool(cyber_skills) or "cyber" in current_title.lower() or "security" in current_title.lower()
 
-        # 2. ATS & Overall Health Scoring Formula
-        ats_score = 45  # Base score for valid document parsing & structure
-        if len(skills) >= 3:
-            ats_score += 15
-        if len(skills) >= 6:
-            ats_score += 15
-        if len(skills) >= 10:
-            ats_score += 5
-            
-        if is_intern_or_student:
-            if education and education != "Undergraduate":
-                ats_score += 10
-            else:
-                ats_score += 5
-            if cyber_skills or languages or frameworks:
-                ats_score += 10
+        # 4. ATS & Overall Health Scoring Formula
+        if not is_valid_doc:
+            ats_score = doc_validation.get("authenticity_score", 20)
         else:
-            if experience >= 1.0:
-                ats_score += 10
-            if education and education != "Undergraduate":
+            ats_score = 45  # Base score for valid document parsing & structure
+            if len(skills) >= 3:
+                ats_score += 15
+            if len(skills) >= 6:
+                ats_score += 15
+            if len(skills) >= 10:
                 ats_score += 5
+                
+            if is_intern_or_student:
+                if education and education != "Undergraduate":
+                    ats_score += 10
+                else:
+                    ats_score += 5
+                if cyber_skills or languages or frameworks:
+                    ats_score += 10
+            else:
+                if experience >= 1.0:
+                    ats_score += 10
+                if education and education != "Undergraduate":
+                    ats_score += 5
 
-        if phone and len(phone) >= 8:
-            ats_score += 5
-        if email and "@" in email:
-            ats_score += 5
-            
-        ats_score = min(100, max(35, ats_score))
+            if phone and len(phone) >= 8:
+                ats_score += 5
+            if email and "@" in email:
+                ats_score += 5
+                
+            ats_score = min(100, max(35, ats_score))
 
-        # 3. Seniority & Domain Classification
+        # 5. Seniority & Domain Classification
         if current_title:
             seniority = current_title
         elif is_cyber and is_intern_or_student:
@@ -291,7 +360,7 @@ class CandidateRanker:
         else:
             seniority = "Associate / Junior Developer"
 
-        # 4. Strengths & Opportunities
+        # 6. Strengths & Opportunities
         strengths = []
         if cyber_skills:
             top_cyber = cyber_skills[:4]
@@ -316,6 +385,12 @@ class CandidateRanker:
             strengths.append("Foundational technical interest and transferable capabilities")
 
         weaknesses = []
+        if not is_valid_doc:
+            weaknesses.append(f"Document Structure Warning: {doc_validation.get('reason', 'Missing standard resume sections')}")
+
+        if name_mismatch:
+            weaknesses.append(f"Identity Discrepancy: Profile name is '{profile_name}' but resume header states '{resume_name}'. Update profile to verify authenticity.")
+
         if is_cyber:
             if not any(s in cyber_skills for s in ["SIEM", "SOC", "Splunk"]):
                 weaknesses.append("Missing enterprise SIEM/SOC monitoring keywords (e.g., Splunk, Elastic SIEM)")
@@ -337,7 +412,7 @@ class CandidateRanker:
         if not weaknesses:
             weaknesses.append("Continue maintaining updated project artifacts and latest security/dev tool versions")
 
-        # 5. Actionable Roadmap
+        # 7. Actionable Roadmap
         if is_cyber or is_intern_or_student:
             recommendations = [
                 "Document hands-on lab environments, CTF write-ups (TryHackMe / HackTheBox), or GitHub security tools",
@@ -351,7 +426,7 @@ class CandidateRanker:
                 "Ensure certifications and latest technical tools are prominently listed in a dedicated skills section"
             ]
 
-        # 6. Job-Specific Fit Matrix across Open Platform
+        # 8. Job-Specific Fit Matrix across Open Platform with Strict Domain Analysis
         job_matrix = []
         if jobs_list:
             for job in jobs_list:
@@ -365,17 +440,30 @@ class CandidateRanker:
                     "match_score": eval_res["overall_score"],
                     "matched_skills": eval_res["matched_skills"],
                     "missing_skills": eval_res["missing_skills"],
+                    "is_domain_mismatch": eval_res.get("is_domain_mismatch", False),
+                    "domain_status": eval_res.get("domain_status", "Direct Domain Fit"),
+                    "domain_warning": eval_res.get("domain_warning"),
                     "skill_gap_advice": eval_res["skill_gap_advice"]
                 })
             job_matrix.sort(key=lambda x: x["match_score"], reverse=True)
 
         return {
             "candidate_name": full_name,
+            "resume_name": resume_name or full_name,
             "email": email,
             "phone": phone,
             "ats_health_score": ats_score,
             "seniority_level": seniority,
             "total_skills_count": len(skills),
+            "authenticity_verification": {
+                "is_valid_resume": is_valid_doc,
+                "identity_status": identity_status,
+                "name_mismatch": name_mismatch,
+                "resume_name": resume_name,
+                "profile_name": profile_name,
+                "identity_discrepancy": identity_discrepancy,
+                "document_validation": doc_validation
+            },
             "skill_taxonomy": {
                 "cybersecurity_and_networking": cyber_skills,
                 "languages": languages,

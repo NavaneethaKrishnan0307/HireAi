@@ -78,23 +78,48 @@ export default function ResumeAnalyzerPage() {
   const scoreColor = atsScore >= 80 ? '#10b981' : atsScore >= 60 ? '#f59e0b' : '#ef4444';
   const scoreBg = atsScore >= 80 ? '#ecfdf5' : atsScore >= 60 ? '#fffbeb' : '#fef2f2';
 
+  const [syncingName, setSyncingName] = useState(false);
+  const [syncSuccess, setSyncSuccess] = useState('');
+
+  const handleSyncProfileName = async (newName) => {
+    if (!newName) return;
+    try {
+      setSyncingName(true);
+      await CandidateAPI.updateProfile({ full_name: newName });
+      const cached = localStorage.getItem('candidate_profile_cache');
+      if (cached) {
+        try {
+          const parsed = JSON.parse(cached);
+          localStorage.setItem('candidate_profile_cache', JSON.stringify({ ...parsed, full_name: newName }));
+        } catch {}
+      }
+      setSyncSuccess(`Profile name successfully updated to '${newName}'!`);
+      setTimeout(() => setSyncSuccess(''), 3500);
+      await loadReport();
+    } catch (err) {
+      alert(err.message || 'Failed to update profile name');
+    } finally {
+      setSyncingName(false);
+    }
+  };
+
   return (
     <div className="content-area print-area">
       {/* Page Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#eff6ff', color: '#2563eb', padding: '4px 12px', borderRadius: '16px', fontSize: '12px', fontWeight: '700', marginBottom: '8px' }}>
-            <Sparkles size={14} /> Open Source Platform AI Audit
+            <Sparkles size={14} /> Open Source Platform AI Audit & Verification Engine
           </div>
           <h2 className="page-title" style={{ margin: 0 }}>Resume Analyzer & Career Report</h2>
           <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
-            In-depth ATS evaluation, skill taxonomy breakdown, and multi-company job fit matrix.
+            In-depth ATS evaluation, document authenticity check, identity verification, and multi-company job fit matrix.
           </p>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <Link 
-            to="/profile"
+            to="/profile" 
             className="choose-btn" 
             style={{ margin: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#2563eb' }}
           >
@@ -109,6 +134,77 @@ export default function ResumeAnalyzerPage() {
           </button>
         </div>
       </div>
+
+      {syncSuccess && (
+        <div style={{ backgroundColor: '#ecfdf5', color: '#059669', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+          <CheckCircle2 size={16} />
+          <span>{syncSuccess}</span>
+        </div>
+      )}
+
+      {/* Authenticity & Identity Verification Banner */}
+      {report.authenticity_verification && (
+        <div style={{ marginBottom: '20px' }}>
+          {report.authenticity_verification.name_mismatch && (
+            <div style={{ 
+              backgroundColor: '#fffbeb', 
+              border: '1px solid #fde68a', 
+              borderRadius: '12px', 
+              padding: '16px 20px', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center', 
+              flexWrap: 'wrap', 
+              gap: '14px',
+              marginBottom: '12px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', flex: 1, minWidth: '280px' }}>
+                <AlertTriangle size={22} color="#d97706" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#92400e', margin: '0 0 4px 0' }}>
+                    Identity Discrepancy Flagged
+                  </h4>
+                  <p style={{ fontSize: '13px', color: '#b45309', margin: 0, lineHeight: 1.4 }}>
+                    Resume document header states candidate name <strong>"{report.authenticity_verification.resume_name}"</strong>, but your logged-in profile name is <strong>"{report.authenticity_verification.profile_name}"</strong>.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="choose-btn"
+                disabled={syncingName}
+                onClick={() => handleSyncProfileName(report.authenticity_verification.resume_name)}
+                style={{ margin: 0, padding: '8px 16px', fontSize: '12px', backgroundColor: '#d97706', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              >
+                <CheckCircle2 size={14} />
+                {syncingName ? 'Updating...' : `Sync Profile Name to "${report.authenticity_verification.resume_name}"`}
+              </button>
+            </div>
+          )}
+
+          {!report.authenticity_verification.is_valid_resume && (
+            <div style={{ 
+              backgroundColor: '#fef2f2', 
+              border: '1px solid #fecaca', 
+              borderRadius: '12px', 
+              padding: '16px 20px', 
+              display: 'flex', 
+              alignItems: 'flex-start', 
+              gap: '12px' 
+            }}>
+              <AlertTriangle size={22} color="#dc2626" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <h4 style={{ fontSize: '14px', fontWeight: '700', color: '#991b1b', margin: '0 0 4px 0' }}>
+                  Invalid / Non-Resume Document Detected
+                </h4>
+                <p style={{ fontSize: '13px', color: '#b91c1c', margin: 0, lineHeight: 1.4 }}>
+                  The uploaded file lacks standard career sections (skills, work experience, or contact credentials). Automated applicant tracking filters will reject this document structure.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Top Banner: Score & Candidate Profile */}
       <div style={{ 
@@ -125,7 +221,14 @@ export default function ResumeAnalyzerPage() {
       }}>
         <div>
           <span style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#94a3b8', fontWeight: '700' }}>Candidate Audit Profile</span>
-          <h3 style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', marginBottom: '8px' }}>{report.candidate_name}</h3>
+          <h3 style={{ fontSize: '24px', fontWeight: '800', marginTop: '4px', marginBottom: '8px' }}>
+            {report.candidate_name}
+            {report.resume_name && report.resume_name !== report.candidate_name && (
+              <span style={{ fontSize: '14px', fontWeight: '400', color: '#94a3b8', marginLeft: '10px' }}>
+                (Resume: {report.resume_name})
+              </span>
+            )}
+          </h3>
           <p style={{ fontSize: '14px', color: '#cbd5e1', marginBottom: '14px' }}>
             {report.email} {report.phone ? `• ${report.phone}` : ''}
           </p>
@@ -173,7 +276,9 @@ export default function ResumeAnalyzerPage() {
               {atsScore >= 80 ? 'Excellent Match Health' : atsScore >= 60 ? 'Good Standard Profile' : 'Needs Optimization'}
             </h4>
             <p style={{ fontSize: '12px', color: '#94a3b8', lineHeight: 1.4 }}>
-              Your resume successfully passed structural parsing and meets platform recruiter evaluation criteria.
+              {report.authenticity_verification && !report.authenticity_verification.is_valid_resume 
+                ? 'Non-resume document structure detected. Upload a standard resume format.' 
+                : 'Your resume was parsed with deterministic rule-based explainable AI.'}
             </p>
           </div>
         </div>
@@ -349,18 +454,29 @@ export default function ResumeAnalyzerPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {report.job_matrix.map(job => (
-              <div key={job.job_id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', backgroundColor: '#fff' }}>
+              <div key={job.job_id} style={{ border: '1px solid #e2e8f0', borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', backgroundColor: job.is_domain_mismatch ? '#fafafa' : '#fff' }}>
                 <div style={{ flex: 1, minWidth: '240px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                     <h4 style={{ fontSize: '15px', fontWeight: '700', color: '#0f172a', margin: 0 }}>{job.title}</h4>
                     <span style={{ backgroundColor: '#f1f5f9', color: '#475569', fontSize: '11px', padding: '2px 8px', borderRadius: '8px', fontWeight: '600' }}>
                       {job.domain}
                     </span>
+                    {job.is_domain_mismatch && (
+                      <span style={{ backgroundColor: '#fffbeb', color: '#b45309', border: '1px solid #fde68a', fontSize: '11px', padding: '2px 8px', borderRadius: '8px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <AlertTriangle size={12} color="#d97706" /> {job.domain_status}
+                      </span>
+                    )}
                   </div>
                   <p style={{ fontSize: '13px', color: '#64748b', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <span><Building size={13} style={{ display: 'inline', verticalAlign: 'middle' }} /> {job.company}</span>
                     <span><MapPin size={13} style={{ display: 'inline', verticalAlign: 'middle' }} /> {job.location}</span>
                   </p>
+
+                  {job.domain_warning && (
+                    <p style={{ fontSize: '12px', color: '#b45309', margin: '0 0 8px 0', fontStyle: 'italic' }}>
+                      {job.domain_warning}
+                    </p>
+                  )}
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                     {job.matched_skills.map(s => (
@@ -378,10 +494,12 @@ export default function ResumeAnalyzerPage() {
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '20px', fontWeight: '900', color: job.match_score >= 80 ? '#10b981' : job.match_score >= 60 ? '#2563eb' : '#f59e0b' }}>
+                    <div style={{ fontSize: '20px', fontWeight: '900', color: job.match_score >= 80 ? '#10b981' : job.match_score >= 60 ? '#2563eb' : job.match_score >= 35 ? '#f59e0b' : '#ef4444' }}>
                       {job.match_score}%
                     </div>
-                    <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>Match Rating</div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', fontWeight: '700' }}>
+                      {job.is_domain_mismatch ? 'Incompatible' : 'Match Rating'}
+                    </div>
                   </div>
 
                   <Link 

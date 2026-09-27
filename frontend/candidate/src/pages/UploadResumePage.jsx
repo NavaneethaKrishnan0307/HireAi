@@ -105,12 +105,24 @@ export default function UploadResumePage() {
     try {
       setLoading(true);
       setError(null);
-      setUploadProgress('Uploading and parsing resume with Explainable AI...');
+      setUploadProgress('Uploading and verifying resume document structure with Explainable AI...');
       
       const res = await CandidateAPI.uploadResume(file);
-      setUploadProgress('Resume successfully parsed and saved!');
+      const docVal = res?.parsed_info?.document_validation;
+      const parsedName = res?.parsed_info?.name;
+
+      if (docVal && !docVal.is_valid) {
+        setError(`Authenticity Warning: ${docVal.reason || 'Document does not appear to have standard resume structure.'}`);
+      }
+
+      if (parsedName && parsedName !== 'Candidate Profile' && parsedName.toLowerCase() !== (candidateName || '').toLowerCase()) {
+        setUploadProgress(`Resume parsed for "${parsedName}"! Click 'Save Details' or view report to verify your profile.`);
+      } else {
+        setUploadProgress('Resume successfully parsed, validated and saved!');
+      }
+
       await loadProfile();
-      setTimeout(() => setUploadProgress(null), 4000);
+      setTimeout(() => setUploadProgress(null), 5000);
     } catch (err) {
       setError(err.message || 'Upload failed');
     } finally {

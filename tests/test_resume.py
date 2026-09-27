@@ -97,3 +97,80 @@ def test_cybersecurity_intern_resume_parsing_and_audit():
     assert len(report["skill_taxonomy"]["cybersecurity_and_networking"]) >= 4
     assert any("toolkit" in s.lower() or "cybersecurity" in s.lower() for s in report["strengths"])
 
+def test_resume_authenticity_and_identity_mismatch():
+    from backend.services.candidate_ranker import CandidateRanker
+
+    # Test 1: Non-resume text validation
+    non_resume_text = "Grocery shopping list: 1L Milk, 12 Eggs, Sliced Bread, Apples, Bananas."
+    val_res = ResumeParser.validate_resume_document(non_resume_text)
+    assert val_res["is_valid"] is False
+    assert "INVALID" in val_res["verdict"]
+
+    # Test 2: Name extraction for "Surves"
+    surves_resume = """
+    SURVES
+    surves.infosec@gmail.com
+    +91 9887766554
+
+    PROFILE
+    Cybersecurity fresher with hands-on networking and Wireshark analysis experience.
+
+    TECHNICAL SKILLS
+    Wireshark, Nmap, Metasploit, Kali Linux, Python, Linux
+
+    EDUCATION
+    B.E. in Computer Science, 2026
+    """
+    extracted_name = ResumeParser.extract_name(surves_resume)
+    assert extracted_name == "Surves"
+
+    # Test 3: Registered Profile is "Joe" but Resume uploaded belongs to "Surves"
+    audit_report = CandidateRanker.generate_resume_audit_report({
+        "full_name": "Joe Candidate",
+        "email": "joe@example.com",
+        "phone": "9887766554",
+        "parsed_skills": ["Wireshark", "Nmap", "Metasploit", "Kali Linux", "Python", "Linux"],
+        "years_of_experience": 0.0,
+        "education": "B.E. in Computer Science",
+        "raw_text": surves_resume,
+        "parsed_data": {
+            "name": "Surves",
+            "skills": ["Wireshark", "Nmap", "Metasploit", "Kali Linux", "Python", "Linux"]
+        }
+    }, jobs_list=[])
+
+    auth_check = audit_report["authenticity_verification"]
+    assert auth_check["name_mismatch"] is True
+    assert auth_check["identity_status"] == "DISCREPANCY_DETECTED"
+    assert "Surves" in auth_check["identity_discrepancy"]
+    assert "Joe" in auth_check["identity_discrepancy"]
+
+def test_strict_domain_misalignment_penalty():
+    from backend.services.candidate_ranker import CandidateRanker
+
+    # Candidate has Cyber Intern skills only
+    cyber_candidate = {
+        "full_name": "Surves",
+        "parsed_skills": ["Wireshark", "Nmap", "Metasploit", "Kali Linux", "Linux"],
+        "years_of_experience": 0.0,
+        "education": "B.Tech in Information Technology"
+    }
+
+    # Job is for a Senior Python Developer
+    python_dev_job = {
+        "id": "job-python-101",
+        "title": "Senior Python Backend Developer",
+        "company": "TechCorp",
+        "required_skills": ["Python", "FastAPI", "Django", "PostgreSQL", "Docker", "AWS"],
+        "min_experience": 3.0,
+        "education_required": "B.Tech"
+    }
+
+    match_result = CandidateRanker.calculate_candidate_match(cyber_candidate, python_dev_job)
+    
+    # Must strictly detect Domain Mismatch and assign low score (< 15%)
+    assert match_result["is_domain_mismatch"] is True
+    assert match_result["overall_score"] <= 15.0
+    assert len(match_result["matched_skills"]) == 0
+    assert "Critical Domain Mismatch" in match_result["domain_status"]
+

@@ -117,18 +117,30 @@ class ResumeParser:
     def extract_name(cls, text: str, email: Optional[str] = None) -> Optional[str]:
         """Extract candidate name heuristic from top non-empty lines."""
         lines = [line.strip() for line in text.splitlines() if line.strip()]
-        for line in lines[:5]:
-            if "@" in line or "http" in line or "www" in line or "resume" in line.lower() or "curriculum" in line.lower():
+        reserved_keywords = {
+            "resume", "curriculum", "vitae", "cv", "profile", "summary", "objective",
+            "contact", "skills", "experience", "education", "projects", "certifications",
+            "email", "phone", "address", "page", "internship", "declaration", "about", "me"
+        }
+        for line in lines[:8]:
+            clean_line = re.sub(r'[^\w\s\.\-]', '', line).strip()
+            if not clean_line:
                 continue
-            words = line.split()
-            if 1 < len(words) <= 4 and all(w.isalpha() or w in ['.', ','] for w in words):
-                return line.title()
+            if "@" in line or "http" in line or "www" in line or "github" in line.lower() or "linkedin" in line.lower():
+                continue
+            words = clean_line.split()
+            if 1 <= len(words) <= 4:
+                if any(w.lower() in reserved_keywords for w in words):
+                    continue
+                if all(re.sub(r'[\.\-]', '', w).isalpha() for w in words):
+                    return clean_line.title()
         
         if email:
             prefix = email.split('@')[0]
             name_parts = re.split(r'[._-]', prefix)
-            if all(p.isalpha() for p in name_parts) and len(name_parts) >= 2:
-                return " ".join(p.capitalize() for p in name_parts)
+            filtered = [p for p in name_parts if p.isalpha() and len(p) > 1 and not p.isdigit()]
+            if filtered:
+                return " ".join(p.capitalize() for p in filtered)
         return "Candidate Profile"
 
     @classmethod
@@ -148,8 +160,8 @@ class ResumeParser:
         """Extract education credentials using hierarchical pattern checks."""
         for pattern, edu_title in EDUCATION_PATTERNS:
             if re.search(pattern, text, re.IGNORECASE):
-                if re.search(r'Computer\s*Science|Information\s*Technology|ECE|CSE|IT|Mechanical|Electrical', text, re.IGNORECASE):
-                    return f"{edu_title} in Computer Science / IT"
+                if re.search(r'Computer\s*Science|Information\s*Technology|Cyber|Security|ECE|CSE|IT|Mechanical|Electrical', text, re.IGNORECASE):
+                    return f"{edu_title} in Computer Science / IT / Security"
                 return edu_title
         return "B.Tech / Graduate"
 
@@ -222,6 +234,95 @@ class ResumeParser:
         return 0.0
 
     @classmethod
+    def validate_resume_document(cls, text: str) -> Dict[str, Any]:
+        """
+        Validate whether the uploaded document has genuine resume structure,
+        or is a non-resume / invalid document.
+        """
+        if not text or len(text.strip()) < 30:
+            return {
+                "is_valid": False,
+                "authenticity_score": 10,
+                "verdict": "INVALID_EMPTY_OR_UNREADABLE",
+                "detected_sections": [],
+                "missing_sections": ["Contact", "Skills", "Experience/Projects", "Education"],
+                "reason": "The uploaded document contains insufficient or unreadable text."
+            }
+
+        t_lower = text.lower()
+        words = re.findall(r'\b\w+\b', text)
+        word_count = len(words)
+
+        if word_count < 20:
+            return {
+                "is_valid": False,
+                "authenticity_score": 20,
+                "verdict": "INVALID_INSUFFICIENT_CONTENT",
+                "detected_sections": [],
+                "missing_sections": ["Contact", "Skills", "Experience/Projects", "Education"],
+                "reason": f"Document contains only {word_count} words, which is insufficient for professional evaluation."
+            }
+
+        detected_sections = []
+        missing_sections = []
+
+        # 1. Contact Section
+        has_email = bool(cls.extract_email(text))
+        has_phone = bool(cls.extract_phone(text))
+        if has_email or has_phone or any(k in t_lower for k in ["contact", "email", "phone", "linkedin", "github", "@"]):
+            detected_sections.append("Contact Information")
+        else:
+            missing_sections.append("Contact Information")
+
+        # 2. Skills Section
+        extracted_skills = cls.extract_skills(text)
+        if len(extracted_skills) >= 1 or any(k in t_lower for k in ["skills", "technologies", "tools", "competencies", "languages"]):
+            detected_sections.append("Skills & Technologies")
+        else:
+            missing_sections.append("Skills & Technologies")
+
+        # 3. Experience / Projects / Internships Section
+        if any(w in t_lower for w in ["experience", "project", "projects", "intern", "internship", "work history", "employment", "labs", "work experience", "responsibilities"]):
+            detected_sections.append("Experience / Projects")
+        else:
+            missing_sections.append("Experience / Projects")
+
+        # 4. Education / Academics Section
+        if any(w in t_lower for w in ["education", "academic", "academics", "degree", "university", "college", "school", "b.tech", "b.e", "bachelor", "master", "m.tech", "mca", "b.sc", "bca"]):
+            detected_sections.append("Education & Credentials")
+        else:
+            missing_sections.append("Education & Credentials")
+
+        score = 25 + (len(detected_sections) * 15)
+        if len(extracted_skills) >= 3:
+            score += 10
+        if has_email and has_phone:
+            score += 5
+        score = min(100, max(20, score))
+
+        is_valid = (len(detected_sections) >= 2) and (len(extracted_skills) >= 1 or has_email or has_phone)
+
+        if is_valid and score >= 65:
+            verdict = "VERIFIED_AUTHENTIC_RESUME"
+            reason = "Document passed resume structural and section validation."
+        elif is_valid:
+            verdict = "PARTIAL_RESUME_STRUCTURE"
+            reason = "Document recognized as resume but missing some standard career sections."
+        else:
+            verdict = "INVALID_NON_RESUME_DOCUMENT"
+            reason = "Document lacks essential resume sections (skills, experience/projects, or contact info)."
+
+        return {
+            "is_valid": is_valid,
+            "authenticity_score": score,
+            "verdict": verdict,
+            "detected_sections": detected_sections,
+            "missing_sections": missing_sections,
+            "reason": reason,
+            "word_count": word_count
+        }
+
+    @classmethod
     def parse_bytes(cls, file_bytes: bytes, filename: str) -> Dict[str, Any]:
         """Perform in-memory parsing from raw bytes without writing to disk."""
         raw_text = cls.extract_text(file_bytes, filename=filename)
@@ -232,6 +333,7 @@ class ResumeParser:
         education = cls.extract_education(raw_text)
         experience_years = cls.extract_experience_years(raw_text)
         current_title = cls.extract_current_title(raw_text)
+        doc_validation = cls.validate_resume_document(raw_text)
 
         return {
             "name": name,
@@ -241,6 +343,8 @@ class ResumeParser:
             "education": education,
             "years_of_experience": experience_years,
             "current_title": current_title,
+            "document_validation": doc_validation,
+            "raw_text": raw_text,
             "extracted_text_preview": raw_text[:500] if raw_text else "",
             "filename": filename,
             "status": "processed"
@@ -257,6 +361,7 @@ class ResumeParser:
         education = cls.extract_education(raw_text)
         experience_years = cls.extract_experience_years(raw_text)
         current_title = cls.extract_current_title(raw_text)
+        doc_validation = cls.validate_resume_document(raw_text)
 
         return {
             "name": name,
@@ -266,6 +371,8 @@ class ResumeParser:
             "education": education,
             "years_of_experience": experience_years,
             "current_title": current_title,
+            "document_validation": doc_validation,
+            "raw_text": raw_text,
             "extracted_text_preview": raw_text[:500] if raw_text else "",
             "filename": file_path.name,
             "status": "processed"
