@@ -1,6 +1,7 @@
+import io
 import re
 from pathlib import Path
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 import PyPDF2
 from docx import Document
 
@@ -38,36 +39,40 @@ EDUCATION_PATTERNS = [
 class ResumeParser:
     """
     Deterministic rule-based document parser.
-    Extracts text and structured metadata from PDF and DOCX documents without machine learning.
+    Extracts text and structured metadata from PDF and DOCX in-memory or from file paths.
+    Requires ZERO local disk storage.
     """
 
     @classmethod
-    def extract_text(cls, file_path: Path) -> str:
-        """Extract raw text from PDF or DOCX file with graceful fallbacks."""
-        ext = file_path.suffix.lower()
+    def extract_text(cls, source: Union[Path, bytes, io.BytesIO], filename: str = "resume.pdf") -> str:
+        """Extract raw text from PDF or DOCX directly from memory buffer or path."""
+        ext = Path(filename).suffix.lower()
         text = ""
-        
+
+        # Normalize to stream
+        if isinstance(source, (bytes, bytearray)):
+            stream = io.BytesIO(source)
+        elif isinstance(source, (Path, str)):
+            p = Path(source)
+            if not p.exists():
+                return ""
+            stream = open(p, "rb")
+            ext = p.suffix.lower()
+        else:
+            stream = source
+
         if ext == ".pdf":
             try:
-                with open(file_path, "rb") as f:
-                    reader = PyPDF2.PdfReader(f)
-                    for page in reader.pages:
-                        extracted = page.extract_text()
-                        if extracted:
-                            text += extracted + "\n"
+                reader = PyPDF2.PdfReader(stream)
+                for page in reader.pages:
+                    extracted = page.extract_text()
+                    if extracted:
+                        text += extracted + "\n"
             except Exception:
-                try:
-                    import pdfplumber
-                    with pdfplumber.open(file_path) as pdf:
-                        for page in pdf.pages:
-                            t = page.extract_text()
-                            if t:
-                                text += t + "\n"
-                except Exception:
-                    pass
-        elif ext == ".docx":
+                pass
+        elif ext in [".docx", ".doc"]:
             try:
-                doc = Document(file_path)
+                doc = Document(stream)
                 for paragraph in doc.paragraphs:
                     text += paragraph.text + "\n"
                 for table in doc.tables:
@@ -77,7 +82,10 @@ class ResumeParser:
                         text += "\n"
             except Exception:
                 pass
-        
+
+        if hasattr(stream, "seek"):
+            stream.seek(0)
+
         return text.strip()
 
     @classmethod
@@ -168,9 +176,32 @@ class ResumeParser:
         return 1.5
 
     @classmethod
+    def parse_bytes(cls, file_bytes: bytes, filename: str) -> Dict[str, Any]:
+        """Perform in-memory parsing from raw bytes without writing to disk."""
+        raw_text = cls.extract_text(file_bytes, filename=filename)
+        email = cls.extract_email(raw_text)
+        phone = cls.extract_phone(raw_text)
+        name = cls.extract_name(raw_text, email)
+        skills = cls.extract_skills(raw_text)
+        education = cls.extract_education(raw_text)
+        experience_years = cls.extract_experience_years(raw_text)
+
+        return {
+            "name": name,
+            "email": email,
+            "phone": phone,
+            "skills": skills,
+            "education": education,
+            "years_of_experience": experience_years,
+            "extracted_text_preview": raw_text[:500] if raw_text else "",
+            "filename": filename,
+            "status": "processed"
+        }
+
+    @classmethod
     def parse_file(cls, file_path: Path) -> Dict[str, Any]:
-        """Perform complete document parsing pipeline."""
-        raw_text = cls.extract_text(file_path)
+        """Perform file parsing pipeline from path (backward compatibility)."""
+        raw_text = cls.extract_text(file_path, filename=file_path.name)
         email = cls.extract_email(raw_text)
         phone = cls.extract_phone(raw_text)
         name = cls.extract_name(raw_text, email)

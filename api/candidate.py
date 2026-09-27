@@ -3,7 +3,7 @@ from typing import Dict, Any, List
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from backend.api.auth import require_candidate
 from backend.utils.supabase_client import get_supabase
-from backend.utils.file_handler import validate_and_save_resume
+from backend.utils.file_handler import process_and_upload_resume
 from backend.services.resume_parser import ResumeParser
 from backend.services.candidate_ranker import CandidateRanker
 from backend.models.candidate import CandidateProfileUpdate, ParsedResumeResponse
@@ -48,16 +48,16 @@ def upload_resume(file: UploadFile = File(...), user: Dict[str, Any] = Depends(r
     supabase = get_supabase()
     user_id = user["sub"]
 
-    # 1. Validate and save resume file
-    saved_path, unique_name, original_name = validate_and_save_resume(file)
+    # 1. Process directly in-memory and upload directly to Supabase cloud storage (0 disk storage)
+    file_bytes, unique_name, original_name, cloud_resume_url = process_and_upload_resume(file)
 
-    # 2. Deterministic Rule-Based Parsing
-    parsed_info = ResumeParser.parse_file(saved_path)
+    # 2. In-Memory Deterministic Rule-Based Parsing (0 local files created)
+    parsed_info = ResumeParser.parse_bytes(file_bytes, filename=original_name)
 
-    # 3. Update candidate database record
+    # 3. Update candidate database record with cloud storage pointer
     update_payload = {
         "resume_filename": original_name,
-        "resume_url": f"/uploads/resumes/{unique_name}",
+        "resume_url": cloud_resume_url,
         "resume_status": "processed",
         "parsed_skills": parsed_info["skills"],
         "education": parsed_info["education"] or "Graduate",
@@ -71,7 +71,8 @@ def upload_resume(file: UploadFile = File(...), user: Dict[str, Any] = Depends(r
     cand_res = supabase.table("candidates").update(update_payload).eq("user_id", user_id).execute()
     
     return {
-        "message": "Resume uploaded and parsed successfully",
+        "message": "Resume processed and stored directly in cloud Supabase",
+        "cloud_url": cloud_resume_url,
         "parsed_info": parsed_info,
         "profile": cand_res.data[0] if cand_res.data else update_payload
     }
