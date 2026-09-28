@@ -7,7 +7,12 @@ from backend.api.auth import require_hr
 from backend.utils.supabase_client import get_supabase
 from backend.services.candidate_ranker import CandidateRanker
 from backend.models.job import JobCreate, JobUpdate, JobSearchQuery
-from backend.models.application import ApplicationStatusUpdate, CandidateStatusUpdate
+from backend.models.application import (
+    ApplicationStatusUpdate, 
+    CandidateStatusUpdate,
+    PipelineMoveRequest,
+    StageDetailsUpdateRequest
+)
 
 router = APIRouter(prefix="/hr", tags=["HR"])
 
@@ -444,16 +449,6 @@ def get_hr_candidate_report(candidate_id: str, user: Dict[str, Any] = Depends(re
 
     report = CandidateRanker.generate_resume_audit_report(enriched, active_jobs)
     return report
-
-
-from pydantic import BaseModel
-
-class PipelineMoveRequest(BaseModel):
-    application_id: Optional[str] = None
-    candidate_id: Optional[str] = None
-    job_id: Optional[str] = None
-    target_stage: str
-
 
 @router.get("/pipeline")
 def get_hr_pipeline(
