@@ -5,11 +5,24 @@ class ApplicationCreate(BaseModel):
     job_id: str
 
 class ApplicationStatusUpdate(BaseModel):
-    status: str # 'applied', 'under_review', 'shortlisted', 'rejected', 'hired'
+    status: str # 'applied', 'shortlisted', 'technical_assessment', 'interview_scheduled', 'offer_extended', 'rejected'
+    stage_details: Optional[Dict[str, Any]] = None
 
 class CandidateStatusUpdate(BaseModel):
-    status: str # 'applied', 'under_review', 'shortlisted', 'rejected', 'hired'
+    status: str
     job_id: Optional[str] = None
+    stage_details: Optional[Dict[str, Any]] = None
+
+class StageDetailsUpdateRequest(BaseModel):
+    target_stage: Optional[str] = None
+    stage_details: Dict[str, Any]
+
+class PipelineMoveRequest(BaseModel):
+    application_id: Optional[str] = None
+    candidate_id: Optional[str] = None
+    job_id: Optional[str] = None
+    target_stage: str
+    stage_details: Optional[Dict[str, Any]] = None
 
 class MatchScoreBreakdown(BaseModel):
     overall_score: float

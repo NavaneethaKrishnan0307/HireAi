@@ -20,6 +20,7 @@ import {
 import InterviewQuestionsModal from '../components/InterviewQuestionsModal';
 import ProofTraceModal from '../components/ProofTraceModal';
 import ResumeReportModal from '../components/ResumeReportModal';
+import ScheduleStageModal from '../components/ScheduleStageModal';
 
 const STAGE_CONFIG = [
   { id: 'applied', label: 'Screened & Applied', icon: '📥', color: '#3b82f6', bg: '#eff6ff' },
@@ -44,6 +45,7 @@ export default function KanbanPipelinePage() {
   const [activeQuestionsCandidate, setActiveQuestionsCandidate] = useState(null);
   const [activeProofTraceCandidate, setActiveProofTraceCandidate] = useState(null);
   const [activeReportCandidate, setActiveReportCandidate] = useState(null);
+  const [activeScheduleCandidate, setActiveScheduleCandidate] = useState(null);
 
   useEffect(() => {
     loadPipeline();
@@ -63,6 +65,11 @@ export default function KanbanPipelinePage() {
   };
 
   const handleMoveStage = async (appItem, targetStage) => {
+    if (['technical_assessment', 'interview_scheduled', 'offer_extended'].includes(targetStage)) {
+      setActiveScheduleCandidate({ candidate: appItem, stage: targetStage });
+      return;
+    }
+
     try {
       await HRAPI.movePipelineStage({
         applicationId: appItem.application_id,
@@ -73,6 +80,29 @@ export default function KanbanPipelinePage() {
       await loadPipeline();
     } catch (err) {
       alert(err.message || 'Failed to move candidate stage');
+    }
+  };
+
+  const handleSaveStageDetails = async ({ targetStage, stageDetails }) => {
+    if (!activeScheduleCandidate?.candidate) return;
+    const item = activeScheduleCandidate.candidate;
+    try {
+      if (item.application_id) {
+        await HRAPI.updateApplicationStageDetails(item.application_id, {
+          targetStage,
+          stageDetails
+        });
+      } else {
+        await HRAPI.movePipelineStage({
+          candidateId: item.candidate_id,
+          jobId: item.job_id,
+          targetStage,
+          stageDetails
+        });
+      }
+      await loadPipeline();
+    } catch (err) {
+      alert(err.message || 'Failed to save stage details');
     }
   };
 
@@ -362,6 +392,34 @@ export default function KanbanPipelinePage() {
                             </button>
                           </div>
 
+                          {/* Stage Specific Scheduling & Offer Action */}
+                          {['technical_assessment', 'interview_scheduled', 'offer_extended'].includes(col.id) && (
+                            <button
+                              type="button"
+                              onClick={() => setActiveScheduleCandidate({ candidate: item, stage: col.id })}
+                              style={{
+                                width: '100%',
+                                background: col.id === 'offer_extended' ? '#ecfdf5' : col.id === 'interview_scheduled' ? '#fffbeb' : '#ecfeff',
+                                color: col.id === 'offer_extended' ? '#047857' : col.id === 'interview_scheduled' ? '#b45309' : '#0e7490',
+                                border: `1px solid ${col.id === 'offer_extended' ? '#a7f3d0' : col.id === 'interview_scheduled' ? '#fde68a' : '#a5f3fc'}`,
+                                borderRadius: '4px',
+                                padding: '5px 8px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px'
+                              }}
+                            >
+                              <Calendar size={12} />
+                              {col.id === 'technical_assessment' && '💻 Schedule / Edit Test'}
+                              {col.id === 'interview_scheduled' && '🎙️ Schedule / Edit Meet'}
+                              {col.id === 'offer_extended' && '🎉 Manage / Edit Offer'}
+                            </button>
+                          )}
+
                           {/* Stage Transition Selector */}
                           <div style={{ marginTop: '2px' }}>
                             <select
@@ -420,6 +478,15 @@ export default function KanbanPipelinePage() {
           candidateId={activeReportCandidate.id || activeReportCandidate.user_id}
           candidateName={activeReportCandidate.full_name}
           onClose={() => setActiveReportCandidate(null)}
+        />
+      )}
+
+      {activeScheduleCandidate && (
+        <ScheduleStageModal
+          candidate={activeScheduleCandidate.candidate}
+          initialStage={activeScheduleCandidate.stage}
+          onClose={() => setActiveScheduleCandidate(null)}
+          onSave={handleSaveStageDetails}
         />
       )}
     </div>

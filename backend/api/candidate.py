@@ -300,7 +300,8 @@ def get_my_applications(user: Dict[str, Any] = Depends(require_candidate)):
             "status": app.get("status", "applied"),
             "applied_at": app.get("applied_at", "2025-07-20T10:00:00Z"),
             "min_salary": job.get("min_salary", 0),
-            "max_salary": job.get("max_salary", 0)
+            "max_salary": job.get("max_salary", 0),
+            "stage_details": app.get("stage_details") or {}
         })
 
     return results

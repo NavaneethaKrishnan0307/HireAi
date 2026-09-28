@@ -537,6 +537,7 @@ def get_hr_pipeline(
             "company": target_job.get("company", "TechCorp"),
             "stage": stage_key,
             "status": app.get("status"),
+            "stage_details": app.get("stage_details") or {},
             "applied_at": app.get("applied_at"),
             "candidate": enriched_cand,
             "match_score": match_details["overall_score"],
@@ -563,12 +564,20 @@ def move_pipeline_stage(
     user: Dict[str, Any] = Depends(require_hr)
 ):
     """
-    Update candidate's recruitment stage in the Kanban board.
+    Update candidate's recruitment stage in the Kanban board and optionally update stage details.
     """
     supabase = get_supabase()
     
+    update_data: Dict[str, Any] = {"status": req.target_stage}
+    
     if req.application_id:
-        res = supabase.table("applications").update({"status": req.target_stage}).eq("id", req.application_id).execute()
+        app_res = supabase.table("applications").select("*").eq("id", req.application_id).execute()
+        current_app = app_res.data[0] if app_res.data else {}
+        if req.stage_details:
+            existing_details = current_app.get("stage_details") or {}
+            update_data["stage_details"] = {**existing_details, **req.stage_details}
+            
+        res = supabase.table("applications").update(update_data).eq("id", req.application_id).execute()
         if not res.data:
             raise HTTPException(status_code=404, detail="Application not found")
         return {"message": f"Moved to {req.target_stage}", "application": res.data[0]}
@@ -584,16 +593,51 @@ def move_pipeline_stage(
         app_res = supabase.table("applications").select("*").eq("candidate_id", req.candidate_id).execute()
         if app_res.data:
             app_id = app_res.data[0]["id"]
-            res = supabase.table("applications").update({"status": req.target_stage}).eq("id", app_id).execute()
+            current_app = app_res.data[0]
+            if req.stage_details:
+                existing_details = current_app.get("stage_details") or {}
+                update_data["stage_details"] = {**existing_details, **req.stage_details}
+                
+            res = supabase.table("applications").update(update_data).eq("id", app_id).execute()
             return {"message": f"Moved to {req.target_stage}", "application": res.data[0]}
         else:
             new_app = {
                 "job_id": target_job,
                 "candidate_id": req.candidate_id,
                 "status": req.target_stage,
+                "stage_details": req.stage_details or {},
                 "applied_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
             }
             res = supabase.table("applications").insert(new_app).execute()
             return {"message": f"Candidate added to {req.target_stage}", "application": res.data[0] if res.data else new_app}
 
     raise HTTPException(status_code=400, detail="Missing application_id or candidate_id")
+
+
+@router.post("/applications/{application_id}/stage-details")
+def update_application_stage_details(
+    application_id: str,
+    req: StageDetailsUpdateRequest,
+    user: Dict[str, Any] = Depends(require_hr)
+):
+    """
+    Allows HR to schedule Tech Assessment / Interview or record official Job Offer details.
+    """
+    supabase = get_supabase()
+    app_res = supabase.table("applications").select("*").eq("id", application_id).execute()
+    if not app_res.data:
+        raise HTTPException(status_code=404, detail="Application not found")
+
+    current_app = app_res.data[0]
+    existing_details = current_app.get("stage_details") or {}
+    updated_details = {**existing_details, **req.stage_details}
+
+    update_payload: Dict[str, Any] = {"stage_details": updated_details}
+    if req.target_stage:
+        update_payload["status"] = req.target_stage
+
+    res = supabase.table("applications").update(update_payload).eq("id", application_id).execute()
+    return {
+        "message": "Application stage details saved successfully",
+        "application": res.data[0] if res.data else current_app
+    }

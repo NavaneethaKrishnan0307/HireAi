@@ -327,29 +327,78 @@ class MockSupabaseClient:
                 "id": "66666666-6666-6666-6666-666666666661",
                 "job_id": "55555555-5555-5555-5555-555555555551",
                 "candidate_id": "11111111-1111-1111-1111-111111111111",
-                "status": "shortlisted",
-                "applied_at": "2025-07-19T10:00:00Z"
+                "status": "offer_extended",
+                "applied_at": "2025-07-19T10:00:00Z",
+                "stage_details": {
+                    "offer_extended": {
+                        "role_title": "Senior Python Backend Engineer",
+                        "compensation": "₹18,50,000 / annum + Performance Bonus",
+                        "joining_date": "2026-11-01",
+                        "venue_location": "Bangalore Tech Park, Tower B (Hybrid: 3 days onsite, 2 days remote)",
+                        "company_rules_url": "https://techcorp.com/careers/employee-handbook-policy",
+                        "notes": "Congratulations on clearing all interview rounds! We are delighted to extend this formal offer. Please review company policies."
+                    },
+                    "interview_scheduled": {
+                        "mode": "online",
+                        "scheduled_date": "2026-10-15",
+                        "scheduled_time": "11:30 AM IST",
+                        "link": "https://meet.google.com/hireai-interview-python",
+                        "venue_address": "TechCorp Towers, Bangalore",
+                        "interviewer_name": "Senior Engineering Director",
+                        "instructions": "System design and scalable microservices architecture discussion."
+                    },
+                    "technical_assessment": {
+                        "mode": "online",
+                        "scheduled_date": "2026-10-10",
+                        "scheduled_time": "02:00 PM IST",
+                        "link": "https://hackerrank.com/test/techcorp-python-eval",
+                        "venue_address": "",
+                        "instructions": "90 mins live coding test evaluating algorithms, FastAPI, and SQL queries."
+                    }
+                }
             },
             {
                 "id": "66666666-6666-6666-6666-666666666662",
                 "job_id": "55555555-5555-5555-5555-555555555551",
                 "candidate_id": "22222222-2222-2222-2222-222222222222",
-                "status": "under_review",
-                "applied_at": "2025-07-20T11:30:00Z"
+                "status": "interview_scheduled",
+                "applied_at": "2025-07-20T11:30:00Z",
+                "stage_details": {
+                    "interview_scheduled": {
+                        "mode": "online",
+                        "scheduled_date": "2026-10-18",
+                        "scheduled_time": "03:00 PM IST",
+                        "link": "https://meet.google.com/techcorp-tech-round1",
+                        "venue_address": "TechCorp Office, Bangalore",
+                        "interviewer_name": "Lead Cloud Architect",
+                        "instructions": "Please be ready with a screen share to walk through your previous full-stack project."
+                    }
+                }
             },
             {
                 "id": "66666666-6666-6666-6666-666666666663",
                 "job_id": "55555555-5555-5555-5555-555555555551",
                 "candidate_id": "33333333-3333-3333-3333-333333333333",
-                "status": "applied",
-                "applied_at": "2025-07-21T09:15:00Z"
+                "status": "technical_assessment",
+                "applied_at": "2025-07-21T09:15:00Z",
+                "stage_details": {
+                    "technical_assessment": {
+                        "mode": "online",
+                        "scheduled_date": "2026-10-12",
+                        "scheduled_time": "10:00 AM IST",
+                        "link": "https://codesignal.com/assessment/hireai-fastapi-round",
+                        "venue_address": "",
+                        "instructions": "Solve 3 algorithmic coding challenges and 1 REST API design problem in 60 minutes."
+                    }
+                }
             },
             {
                 "id": "66666666-6666-6666-6666-666666666664",
                 "job_id": "55555555-5555-5555-5555-555555555552",
                 "candidate_id": "44444444-4444-4444-4444-444444444444",
                 "status": "applied",
-                "applied_at": "2025-07-22T14:45:00Z"
+                "applied_at": "2025-07-22T14:45:00Z",
+                "stage_details": {}
             }
         ]
 

@@ -216,7 +216,7 @@ export const HRAPI = {
     return res.json();
   },
 
-  async movePipelineStage({ applicationId, candidateId, jobId, targetStage }) {
+  async movePipelineStage({ applicationId, candidateId, jobId, targetStage, stageDetails = null }) {
     const res = await fetch(`${API_BASE}/api/hr/pipeline/move`, {
       method: 'POST',
       headers: {
@@ -227,10 +227,27 @@ export const HRAPI = {
         application_id: applicationId,
         candidate_id: candidateId,
         job_id: jobId,
-        target_stage: targetStage
+        target_stage: targetStage,
+        stage_details: stageDetails
       })
     });
     if (!res.ok) throw new Error('Failed to advance pipeline stage');
+    return res.json();
+  },
+
+  async updateApplicationStageDetails(applicationId, { targetStage = null, stageDetails }) {
+    const res = await fetch(`${API_BASE}/api/hr/applications/${applicationId}/stage-details`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader()
+      },
+      body: JSON.stringify({
+        target_stage: targetStage,
+        stage_details: stageDetails
+      })
+    });
+    if (!res.ok) throw new Error('Failed to update stage details');
     return res.json();
   }
 };
