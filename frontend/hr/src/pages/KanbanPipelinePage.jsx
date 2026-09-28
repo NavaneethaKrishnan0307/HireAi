@@ -15,7 +15,8 @@ import {
   CheckCircle2, 
   Clock, 
   Award,
-  RefreshCw
+  RefreshCw,
+  Calendar
 } from 'lucide-react';
 import InterviewQuestionsModal from '../components/InterviewQuestionsModal';
 import ProofTraceModal from '../components/ProofTraceModal';
