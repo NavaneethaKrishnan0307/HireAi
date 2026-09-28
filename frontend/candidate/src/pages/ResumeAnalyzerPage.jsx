@@ -329,13 +329,13 @@ export default function ResumeAnalyzerPage() {
       )}
 
       {/* Deterministic STAR Bullet Transformer Banner */}
-      <div style={{ background: 'linear-gradient(135deg, #fdf4ff, #faf5ff)', border: '1px solid #f0abfc', borderRadius: '10px', padding: '16px 20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9333ea', fontWeight: '800', fontSize: '14px', marginBottom: '4px' }}>
-            <Sparkles size={16} /> Deterministic STAR Bullet Transformer & Optimizer (CFG Production Rules)
+      <div style={{ background: 'linear-gradient(135deg, #fdf4ff, #faf5ff)', border: '1px solid #e879f9', borderRadius: '12px', padding: '18px 22px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', boxShadow: '0 2px 8px rgba(168, 85, 247, 0.1)' }}>
+        <div style={{ flex: 1, minWidth: '280px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9333ea', fontWeight: '800', fontSize: '15px', marginBottom: '4px' }}>
+            <Sparkles size={18} /> ✍️ Supercharge Your Resume Bullet Points (STAR Method)
           </div>
-          <p style={{ fontSize: '13px', color: '#6b21a8', margin: 0 }}>
-            Convert weak or passive resume phrases into verified STAR power templates with quantifiable metrics.
+          <p style={{ fontSize: '13px', color: '#6b21a8', margin: 0, lineHeight: 1.4 }}>
+            Replace weak phrases (e.g. <em>"worked on backend"</em>) with high-impact power bullets (e.g. <em>"Architected backend APIs, cutting latency by 35%"</em>).
           </p>
         </div>
         <button
@@ -345,18 +345,18 @@ export default function ResumeAnalyzerPage() {
             backgroundColor: '#9333ea',
             color: '#ffffff',
             border: 'none',
-            padding: '10px 18px',
+            padding: '12px 22px',
             borderRadius: '8px',
             fontSize: '13px',
-            fontWeight: '700',
+            fontWeight: '800',
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 2px 6px rgba(147, 51, 234, 0.25)'
+            gap: '8px',
+            boxShadow: '0 2px 8px rgba(147, 51, 234, 0.3)'
           }}
         >
-          <Wand2 size={15} /> Launch STAR Transformer
+          <Wand2 size={16} /> Open STAR Transformer & Examples
         </button>
       </div>
 

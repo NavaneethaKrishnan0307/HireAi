@@ -311,7 +311,10 @@ export default function KanbanPipelinePage() {
                           <div style={{ display: 'flex', gap: '4px', marginTop: '4px', paddingTop: '6px', borderTop: '1px solid #f1f5f9' }}>
                             <button
                               type="button"
-                              onClick={() => setActiveQuestionsCandidate(cand)}
+                              onClick={() => setActiveQuestionsCandidate({
+                                ...cand,
+                                interview_questions: item.interview_questions || item.match_details?.interview_questions || []
+                              })}
                               style={{
                                 flex: 1,
                                 background: '#eff6ff',
@@ -398,6 +401,7 @@ export default function KanbanPipelinePage() {
       {activeQuestionsCandidate && (
         <InterviewQuestionsModal
           candidate={activeQuestionsCandidate}
+          questions={activeQuestionsCandidate.interview_questions || []}
           isBlind={isBlindMode}
           onClose={() => setActiveQuestionsCandidate(null)}
         />

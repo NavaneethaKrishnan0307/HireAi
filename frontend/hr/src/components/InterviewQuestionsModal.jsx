@@ -8,7 +8,52 @@ export default function InterviewQuestionsModal({ candidate, questions = [], isB
 
   const displayName = isBlind ? `Candidate #${(candidate.id || 'A14').slice(0, 5).toUpperCase()}` : (candidate.full_name || 'Candidate');
   
-  const questionList = questions.length > 0 ? questions : (candidate.interview_questions || candidate.match_details?.interview_questions || []);
+  const primarySkill = (candidate.parsed_skills && candidate.parsed_skills[0]) || 'Software Architecture';
+  const defaultQuestions = [
+    {
+      category: 'TECHNICAL_CORE',
+      badge: 'Core Competency',
+      target_skill: primarySkill,
+      question: `Can you detail your production experience with ${primarySkill}? What were the key architectural trade-offs or performance considerations in your recent implementation?`,
+      interviewer_rubric: `Look for deep understanding of ${primarySkill} best practices, concurrency, memory management, or error handling rather than just syntax knowledge.`
+    },
+    {
+      category: 'SKILL_GAP_TRANSITION',
+      badge: 'Skill Gap & Adaptability',
+      target_skill: 'System Integration',
+      question: `Describe a scenario where you had to quickly adopt a new technology stack or cloud framework under a tight project deadline. How did you validate your solution?`,
+      interviewer_rubric: `Assess steep learning curve capability, self-sufficiency with documentation, and test-driven validation.`
+    },
+    {
+      category: 'ARCHITECTURE_SCALE',
+      badge: 'Architecture & Scale',
+      target_skill: 'Scalability',
+      question: `How have you designed software components to handle increasing traffic loads, database connection limits, and graceful failure recovery?`,
+      interviewer_rubric: `Look for caching strategies (Redis), database indexing/sharding, connection pooling, and circuit breaker patterns.`
+    },
+    {
+      category: 'METRIC_VERIFICATION',
+      badge: 'Metric Verification',
+      target_skill: 'Impact Claims',
+      question: `In your resume, you listed measurable contributions to engineering projects. Walk us through how you measured that impact and baseline performance metrics.`,
+      interviewer_rubric: `Verify that candidate genuinely understands the performance numbers, latency reductions, or throughput claims stated on their resume.`
+    },
+    {
+      category: 'BEHAVIORAL_DELIVERY',
+      badge: 'Agile Delivery',
+      target_skill: 'Collaboration',
+      question: `Describe a situation where requirements shifted unexpectedly midway through a sprint. How did you realign priorities and communicate with cross-functional stakeholders?`,
+      interviewer_rubric: `Assess constructive communication, pragmatic prioritization, and commitment to delivery without creating friction.`
+    }
+  ];
+
+  const questionList = (questions && questions.length > 0)
+    ? questions
+    : ((candidate.interview_questions && candidate.interview_questions.length > 0)
+      ? candidate.interview_questions
+      : ((candidate.match_details?.interview_questions && candidate.match_details.interview_questions.length > 0)
+        ? candidate.match_details.interview_questions
+        : defaultQuestions));
 
   const handleCopyAll = () => {
     const text = questionList.map((q, idx) => (
