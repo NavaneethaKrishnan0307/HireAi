@@ -89,10 +89,20 @@ export default function KanbanPipelinePage() {
     const item = activeScheduleCandidate.candidate;
     try {
       if (item.application_id) {
-        await HRAPI.updateApplicationStageDetails(item.application_id, {
-          targetStage,
-          stageDetails
-        });
+        try {
+          await HRAPI.updateApplicationStageDetails(item.application_id, {
+            targetStage,
+            stageDetails
+          });
+        } catch (e) {
+          await HRAPI.movePipelineStage({
+            applicationId: item.application_id,
+            candidateId: item.candidate_id,
+            jobId: item.job_id,
+            targetStage,
+            stageDetails
+          });
+        }
       } else {
         await HRAPI.movePipelineStage({
           candidateId: item.candidate_id,
@@ -102,6 +112,7 @@ export default function KanbanPipelinePage() {
         });
       }
       await loadPipeline();
+      alert(`Stage details successfully saved for ${item.candidate?.full_name || 'Candidate'}!`);
     } catch (err) {
       alert(err.message || 'Failed to save stage details');
     }
@@ -393,33 +404,171 @@ export default function KanbanPipelinePage() {
                             </button>
                           </div>
 
-                          {/* Stage Specific Scheduling & Offer Action */}
-                          {['technical_assessment', 'interview_scheduled', 'offer_extended'].includes(col.id) && (
-                            <button
-                              type="button"
-                              onClick={() => setActiveScheduleCandidate({ candidate: item, stage: col.id })}
-                              style={{
-                                width: '100%',
-                                background: col.id === 'offer_extended' ? '#ecfdf5' : col.id === 'interview_scheduled' ? '#fffbeb' : '#ecfeff',
-                                color: col.id === 'offer_extended' ? '#047857' : col.id === 'interview_scheduled' ? '#b45309' : '#0e7490',
-                                border: `1px solid ${col.id === 'offer_extended' ? '#a7f3d0' : col.id === 'interview_scheduled' ? '#fde68a' : '#a5f3fc'}`,
-                                borderRadius: '4px',
-                                padding: '5px 8px',
-                                fontSize: '11px',
-                                fontWeight: '700',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <Calendar size={12} />
-                              {col.id === 'technical_assessment' && '💻 Schedule / Edit Test'}
-                              {col.id === 'interview_scheduled' && '🎙️ Schedule / Edit Meet'}
-                              {col.id === 'offer_extended' && '🎉 Manage / Edit Offer'}
-                            </button>
-                          )}
+                          {/* Scheduling & Stage Dispatch Action Toolbar */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '4px' }}>
+                            {col.id === 'technical_assessment' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'technical_assessment' })}
+                                  style={{
+                                    width: '100%',
+                                    background: '#ecfeff',
+                                    color: '#0891b2',
+                                    border: '1px solid #a5f3fc',
+                                    borderRadius: '6px',
+                                    padding: '6px 8px',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '5px'
+                                  }}
+                                >
+                                  <Calendar size={13} /> 💻 Edit Test Schedule
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'interview_scheduled' })}
+                                  style={{
+                                    width: '100%',
+                                    background: '#f5f3ff',
+                                    color: '#7c3aed',
+                                    border: '1px solid #ddd6fe',
+                                    borderRadius: '6px',
+                                    padding: '5px 8px',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '5px'
+                                  }}
+                                >
+                                  <ArrowRight size={13} /> 🎙️ Advance to Interview
+                                </button>
+                              </>
+                            )}
+
+                            {col.id === 'interview_scheduled' && (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'interview_scheduled' })}
+                                  style={{
+                                    width: '100%',
+                                    background: '#fffbeb',
+                                    color: '#b45309',
+                                    border: '1px solid #fde68a',
+                                    borderRadius: '6px',
+                                    padding: '6px 8px',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '5px'
+                                  }}
+                                >
+                                  <Calendar size={13} /> 🎙️ Edit Interview Schedule
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'offer_extended' })}
+                                  style={{
+                                    width: '100%',
+                                    background: '#ecfdf5',
+                                    color: '#059669',
+                                    border: '1px solid #a7f3d0',
+                                    borderRadius: '6px',
+                                    padding: '5px 8px',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '5px'
+                                  }}
+                                >
+                                  <ArrowRight size={13} /> 🎉 Extend Job Offer
+                                </button>
+                              </>
+                            )}
+
+                            {col.id === 'offer_extended' && (
+                              <button
+                                type="button"
+                                onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'offer_extended' })}
+                                style={{
+                                  width: '100%',
+                                  background: '#ecfdf5',
+                                  color: '#047857',
+                                  border: '1px solid #a7f3d0',
+                                  borderRadius: '6px',
+                                  padding: '7px 8px',
+                                  fontSize: '11px',
+                                  fontWeight: '800',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '5px'
+                                }}
+                              >
+                                <Calendar size={13} /> 🎉 Manage / Edit Offer
+                              </button>
+                            )}
+
+                            {['applied', 'shortlisted'].includes(col.id) && (
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'technical_assessment' })}
+                                  style={{
+                                    background: '#ecfeff',
+                                    color: '#0891b2',
+                                    border: '1px solid #a5f3fc',
+                                    borderRadius: '5px',
+                                    padding: '5px 4px',
+                                    fontSize: '10px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '3px'
+                                  }}
+                                >
+                                  💻 Schedule Test
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'interview_scheduled' })}
+                                  style={{
+                                    background: '#f5f3ff',
+                                    color: '#7c3aed',
+                                    border: '1px solid #ddd6fe',
+                                    borderRadius: '5px',
+                                    padding: '5px 4px',
+                                    fontSize: '10px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '3px'
+                                  }}
+                                >
+                                  🎙️ Interview
+                                </button>
+                              </div>
+                            )}
+                          </div>
 
                           {/* Stage Transition Selector */}
                           <div style={{ marginTop: '2px' }}>
