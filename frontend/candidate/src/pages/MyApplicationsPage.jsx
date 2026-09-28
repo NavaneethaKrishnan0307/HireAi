@@ -229,12 +229,37 @@ export default function MyApplicationsPage() {
                   </div>
                 </div>
 
+                {/* STAGE 1 & 2 NOTICE BANNERS */}
+                {currentStageNum === 1 && (
+                  <div style={{ backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '14px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Clock size={18} color="#2563eb" />
+                    <div>
+                      <strong style={{ fontSize: '13px', color: '#1e40af' }}>Screening & Initial Review in Progress</strong>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#3b82f6' }}>
+                        Your application has been received and is under review by the hiring team. Once your profile is shortlisted, technical evaluation schedules will be published here.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {currentStageNum === 2 && (
+                  <div style={{ backgroundColor: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '8px', padding: '14px 18px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <Sparkles size={18} color="#7c3aed" />
+                    <div>
+                      <strong style={{ fontSize: '13px', color: '#5b21b6' }}>Profile Shortlisted! ⭐</strong>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#6d28d9' }}>
+                        Congratulations! The hiring team has shortlisted your application. Your Technical Assessment slot is currently being prepared.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 {/* STAGE 3: TECHNICAL ASSESSMENT DETAILS CARD */}
-                {(currentStageNum === 3 || techDetails.scheduled_date || techDetails.link) && (
-                  <div style={{ backgroundColor: '#f0f9ff', border: '1.5px solid #bae6fd', borderRadius: '10px', padding: '18px', marginBottom: '16px' }}>
+                {currentStageNum >= 3 && (techDetails.scheduled_date || techDetails.link || techDetails.venue_address) && (
+                  <div style={{ backgroundColor: '#f0f9ff', border: currentStageNum === 3 ? '2px solid #0284c7' : '1px solid #bae6fd', borderRadius: '10px', padding: '18px', marginBottom: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                       <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0369a1', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        💻 Technical Assessment Details
+                        💻 Technical Assessment Details {currentStageNum > 3 && '✓ (Cleared)'}
                       </h4>
                       <span style={{ backgroundColor: '#e0f2fe', color: '#0369a1', padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700' }}>
                         {techDetails.mode === 'in_person' ? '🏢 In-Person Test Center' : '🌐 Online Assessment'}
@@ -277,11 +302,11 @@ export default function MyApplicationsPage() {
                 )}
 
                 {/* STAGE 4: INTERVIEW SCHEDULED DETAILS CARD */}
-                {(currentStageNum === 4 || interviewDetails.scheduled_date || interviewDetails.link) && (
-                  <div style={{ backgroundColor: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: '10px', padding: '18px', marginBottom: '16px' }}>
+                {currentStageNum >= 4 && (interviewDetails.scheduled_date || interviewDetails.link || interviewDetails.venue_address) && (
+                  <div style={{ backgroundColor: '#fffbeb', border: currentStageNum === 4 ? '2px solid #f59e0b' : '1px solid #fde68a', borderRadius: '10px', padding: '18px', marginBottom: '16px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                       <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#92400e', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        🎙️ Interview Round Schedule
+                        🎙️ Interview Round Schedule {currentStageNum > 4 && '✓ (Cleared)'}
                       </h4>
                       <span style={{ backgroundColor: '#fef3c7', color: '#92400e', padding: '3px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '700' }}>
                         {interviewDetails.mode === 'in_person' ? '🏢 In-Person Office Interview' : '📹 Online Video Call'}

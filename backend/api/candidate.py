@@ -272,6 +272,27 @@ def apply_to_job(req: ApplicationCreate, user: Dict[str, Any] = Depends(require_
     }
 
 
+def _filter_candidate_stage_details(status: str, stage_details: Dict[str, Any]) -> Dict[str, Any]:
+    if not stage_details:
+        return {}
+    filtered = dict(stage_details)
+    norm = str(status).lower()
+    if norm in ["applied", "screened", "rejected"]:
+        filtered.pop("technical_assessment", None)
+        filtered.pop("interview_scheduled", None)
+        filtered.pop("offer_extended", None)
+    elif norm in ["shortlisted"]:
+        filtered.pop("technical_assessment", None)
+        filtered.pop("interview_scheduled", None)
+        filtered.pop("offer_extended", None)
+    elif norm in ["technical_assessment", "assessment"]:
+        filtered.pop("interview_scheduled", None)
+        filtered.pop("offer_extended", None)
+    elif norm in ["interview_scheduled", "interview"]:
+        filtered.pop("offer_extended", None)
+    return filtered
+
+
 @router.get("/applications")
 def get_my_applications(user: Dict[str, Any] = Depends(require_candidate)):
     supabase = get_supabase()
@@ -291,17 +312,19 @@ def get_my_applications(user: Dict[str, Any] = Depends(require_candidate)):
     results = []
     for app in apps:
         job = jobs_map.get(app.get("job_id"), {})
+        status = app.get("status", "applied")
+        raw_details = app.get("stage_details") or {}
         results.append({
             "id": app.get("id"),
             "job_id": app.get("job_id"),
             "job_title": job.get("title", "Software Developer"),
             "company": job.get("company", "TechCorp Solutions"),
             "location": job.get("location", "Bangalore"),
-            "status": app.get("status", "applied"),
+            "status": status,
             "applied_at": app.get("applied_at", "2025-07-20T10:00:00Z"),
             "min_salary": job.get("min_salary", 0),
             "max_salary": job.get("max_salary", 0),
-            "stage_details": app.get("stage_details") or {}
+            "stage_details": _filter_candidate_stage_details(status, raw_details)
         })
 
     return results

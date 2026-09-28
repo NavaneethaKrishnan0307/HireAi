@@ -15,12 +15,11 @@ import {
   BookOpen, 
   Globe, 
   Building,
-  ArrowRight,
-  Layers
+  ShieldCheck
 } from 'lucide-react';
 
 export default function ScheduleStageModal({ candidate, initialStage, onClose, onSave }) {
-  const [currentStage, setCurrentStage] = useState(initialStage || candidate?.stage || 'technical_assessment');
+  const currentStage = initialStage || candidate?.stage || 'technical_assessment';
   const [saving, setSaving] = useState(false);
 
   const existingStageDetails = candidate?.stage_details || {};
@@ -28,7 +27,7 @@ export default function ScheduleStageModal({ candidate, initialStage, onClose, o
   const existingInterview = existingStageDetails.interview_scheduled || {};
   const existingOffer = existingStageDetails.offer_extended || {};
 
-  // Tech Assessment State
+  // Tech Assessment State (Stage 3)
   const [techMode, setTechMode] = useState(existingTech.mode || 'online');
   const [techDate, setTechDate] = useState(existingTech.scheduled_date || new Date().toISOString().split('T')[0]);
   const [techTime, setTechTime] = useState(existingTech.scheduled_time || '10:00 AM IST');
@@ -36,7 +35,7 @@ export default function ScheduleStageModal({ candidate, initialStage, onClose, o
   const [techVenue, setTechVenue] = useState(existingTech.venue_address || 'TechCorp Innovation Hub, 4th Floor, Tech Park, Bangalore');
   const [techInstructions, setTechInstructions] = useState(existingTech.instructions || '60-minute automated coding assessment covering algorithms, data structures, and REST API design.');
 
-  // Interview State
+  // Interview State (Stage 4)
   const [interviewMode, setInterviewMode] = useState(existingInterview.mode || 'online');
   const [interviewDate, setInterviewDate] = useState(existingInterview.scheduled_date || new Date().toISOString().split('T')[0]);
   const [interviewTime, setInterviewTime] = useState(existingInterview.scheduled_time || '02:30 PM IST');
@@ -45,19 +44,13 @@ export default function ScheduleStageModal({ candidate, initialStage, onClose, o
   const [interviewPanel, setInterviewPanel] = useState(existingInterview.interviewer_name || 'Senior Technical Panel & VP Engineering');
   const [interviewInstructions, setInterviewInstructions] = useState(existingInterview.instructions || 'Technical system design discussion and code walkthrough. Please bring a valid ID and be prepared for live problem solving.');
 
-  // Offer State
+  // Offer State (Stage 5)
   const [offerRole, setOfferRole] = useState(existingOffer.role_title || candidate?.job_title || 'Senior Software Engineer');
   const [offerCompensation, setOfferCompensation] = useState(existingOffer.compensation || '₹22,00,000 / annum + Performance Bonus & ESOPs');
   const [offerJoinDate, setOfferJoinDate] = useState(existingOffer.joining_date || new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0]);
   const [offerLocation, setOfferLocation] = useState(existingOffer.venue_location || 'Bangalore HQ / Hybrid (3 days onsite, 2 days remote)');
   const [offerHandbookUrl, setOfferHandbookUrl] = useState(existingOffer.company_rules_url || 'https://techcorp.com/careers/employee-handbook-policy');
   const [offerNotes, setOfferNotes] = useState(existingOffer.notes || 'Congratulations on clearing all evaluation rounds! We are thrilled to extend this formal offer. Please review company policies and confirm your acceptance.');
-
-  useEffect(() => {
-    if (initialStage) {
-      setCurrentStage(initialStage);
-    }
-  }, [initialStage]);
 
   // Quick Preset Handlers
   const applyPreset = (type) => {
@@ -146,16 +139,18 @@ export default function ScheduleStageModal({ candidate, initialStage, onClose, o
         style={{ maxWidth: '680px', width: '92%', maxHeight: '92vh', overflowY: 'auto', padding: '24px' }}
       >
         {/* Modal Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '1px solid #f1f5f9', paddingBottom: '14px' }}>
           <div>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#f0fdf4', color: '#16a34a', padding: '3px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>
-              <Sparkles size={12} /> Recruitment Pipeline Dispatcher
+              <Sparkles size={12} /> Level-by-Level Recruitment Progression
             </div>
             <h3 style={{ margin: 0, fontSize: '19px', fontWeight: '800', color: '#0f172a' }}>
-              Stage Management & Scheduling
+              {currentStage === 'technical_assessment' && '💻 Stage 3: Technical Assessment Schedule'}
+              {currentStage === 'interview_scheduled' && '🎙️ Stage 4: Interview Round Schedule'}
+              {currentStage === 'offer_extended' && '🎉 Stage 5: Formal Employment Offer'}
             </h3>
             <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
-              Candidate: <strong style={{ color: '#1e293b' }}>{candidateDisplayName}</strong> • Requisition: <strong>{roleName}</strong>
+              Candidate: <strong style={{ color: '#1e293b' }}>{candidateDisplayName}</strong> • Position: <strong>{roleName}</strong>
             </p>
           </div>
           <button 
@@ -166,91 +161,33 @@ export default function ScheduleStageModal({ candidate, initialStage, onClose, o
           </button>
         </div>
 
-        {/* Stage Selection Tabs */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px', marginBottom: '18px' }}>
-          <button
-            type="button"
-            onClick={() => setCurrentStage('technical_assessment')}
-            style={{
-              padding: '10px 8px',
-              borderRadius: '8px',
-              border: currentStage === 'technical_assessment' ? '2px solid #0284c7' : '1px solid #e2e8f0',
-              backgroundColor: currentStage === 'technical_assessment' ? '#f0f9ff' : '#ffffff',
-              color: currentStage === 'technical_assessment' ? '#0369a1' : '#64748b',
-              fontWeight: currentStage === 'technical_assessment' ? '800' : '600',
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              transition: 'all 0.15s'
-            }}
-          >
-            <span style={{ fontSize: '16px' }}>💻</span>
-            <span>Tech Assessment</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setCurrentStage('interview_scheduled')}
-            style={{
-              padding: '10px 8px',
-              borderRadius: '8px',
-              border: currentStage === 'interview_scheduled' ? '2px solid #7c3aed' : '1px solid #e2e8f0',
-              backgroundColor: currentStage === 'interview_scheduled' ? '#f5f3ff' : '#ffffff',
-              color: currentStage === 'interview_scheduled' ? '#6d28d9' : '#64748b',
-              fontWeight: currentStage === 'interview_scheduled' ? '800' : '600',
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              transition: 'all 0.15s'
-            }}
-          >
-            <span style={{ fontSize: '16px' }}>🎙️</span>
-            <span>Interview Round</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setCurrentStage('offer_extended')}
-            style={{
-              padding: '10px 8px',
-              borderRadius: '8px',
-              border: currentStage === 'offer_extended' ? '2px solid #059669' : '1px solid #e2e8f0',
-              backgroundColor: currentStage === 'offer_extended' ? '#ecfdf5' : '#ffffff',
-              color: currentStage === 'offer_extended' ? '#047857' : '#64748b',
-              fontWeight: currentStage === 'offer_extended' ? '800' : '600',
-              fontSize: '12px',
-              cursor: 'pointer',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              transition: 'all 0.15s'
-            }}
-          >
-            <span style={{ fontSize: '16px' }}>🎉</span>
-            <span>Job Offer</span>
-          </button>
-        </div>
-
-        {/* Quick Presets Banner */}
-        <div style={{ backgroundColor: '#f8fafc', padding: '10px 14px', borderRadius: '8px', marginBottom: '18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', border: '1px solid #e2e8f0' }}>
-          <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569', display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Sparkles size={13} color="#f59e0b" /> Quick 1-Click Fill:
+        {/* Stage Notice Info Banner */}
+        <div style={{ 
+          backgroundColor: currentStage === 'offer_extended' ? '#ecfdf5' : currentStage === 'interview_scheduled' ? '#fffbeb' : '#f0f9ff', 
+          border: `1px solid ${currentStage === 'offer_extended' ? '#a7f3d0' : currentStage === 'interview_scheduled' ? '#fde68a' : '#bae6fd'}`, 
+          padding: '10px 14px', 
+          borderRadius: '8px', 
+          marginBottom: '16px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'space-between', 
+          flexWrap: 'wrap', 
+          gap: '8px' 
+        }}>
+          <span style={{ fontSize: '12px', fontWeight: '700', color: currentStage === 'offer_extended' ? '#065f46' : currentStage === 'interview_scheduled' ? '#92400e' : '#0369a1', display: 'flex', alignItems: 'center', gap: '5px' }}>
+            <ShieldCheck size={14} />
+            {currentStage === 'technical_assessment' && 'Configure test window and online/onsite access link for candidate.'}
+            {currentStage === 'interview_scheduled' && 'Configure video conference meeting link, date, and panel member details.'}
+            {currentStage === 'offer_extended' && 'Configure official CTC compensation, joining date, and policies handbook.'}
           </span>
           <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
             {currentStage === 'technical_assessment' && (
               <>
                 <button type="button" onClick={() => applyPreset('hackerrank_test')} className="choose-btn" style={{ margin: 0, padding: '4px 10px', fontSize: '11px', backgroundColor: '#0284c7' }}>
-                  🌐 HackerRank Assessment
+                  🌐 HackerRank Test
                 </button>
                 <button type="button" onClick={() => applyPreset('in_person_test')} className="choose-btn" style={{ margin: 0, padding: '4px 10px', fontSize: '11px', backgroundColor: '#0f766e' }}>
-                  🏢 In-Person Lab Test
+                  🏢 In-Person Lab
                 </button>
               </>
             )}
@@ -260,13 +197,13 @@ export default function ScheduleStageModal({ candidate, initialStage, onClose, o
                   📹 Google Meet
                 </button>
                 <button type="button" onClick={() => applyPreset('onsite_interview')} className="choose-btn" style={{ margin: 0, padding: '4px 10px', fontSize: '11px', backgroundColor: '#0f766e' }}>
-                  🏢 Onsite Boardroom
+                  🏢 Onsite Office
                 </button>
               </>
             )}
             {currentStage === 'offer_extended' && (
               <button type="button" onClick={() => applyPreset('standard_offer')} className="choose-btn" style={{ margin: 0, padding: '4px 10px', fontSize: '11px', backgroundColor: '#059669' }}>
-                📄 Standard Tech Package
+                📄 Standard Package
               </button>
             )}
           </div>

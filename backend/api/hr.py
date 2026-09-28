@@ -553,6 +553,27 @@ def get_hr_pipeline(
     }
 
 
+def _filter_stage_details_for_status(status: str, stage_details: Dict[str, Any]) -> Dict[str, Any]:
+    if not stage_details:
+        return {}
+    filtered = dict(stage_details)
+    norm = str(status).lower()
+    if norm in ["applied", "screened", "rejected"]:
+        filtered.pop("technical_assessment", None)
+        filtered.pop("interview_scheduled", None)
+        filtered.pop("offer_extended", None)
+    elif norm in ["shortlisted"]:
+        filtered.pop("technical_assessment", None)
+        filtered.pop("interview_scheduled", None)
+        filtered.pop("offer_extended", None)
+    elif norm in ["technical_assessment", "assessment"]:
+        filtered.pop("interview_scheduled", None)
+        filtered.pop("offer_extended", None)
+    elif norm in ["interview_scheduled", "interview"]:
+        filtered.pop("offer_extended", None)
+    return filtered
+
+
 @router.post("/pipeline/move")
 def move_pipeline_stage(
     req: PipelineMoveRequest,
@@ -568,9 +589,9 @@ def move_pipeline_stage(
     if req.application_id:
         app_res = supabase.table("applications").select("*").eq("id", req.application_id).execute()
         current_app = app_res.data[0] if app_res.data else {}
-        if req.stage_details:
-            existing_details = current_app.get("stage_details") or {}
-            update_data["stage_details"] = {**existing_details, **req.stage_details}
+        existing_details = current_app.get("stage_details") or {}
+        combined_details = {**existing_details, **(req.stage_details or {})}
+        update_data["stage_details"] = _filter_stage_details_for_status(req.target_stage, combined_details)
             
         res = supabase.table("applications").update(update_data).eq("id", req.application_id).execute()
         if not res.data:
@@ -589,9 +610,9 @@ def move_pipeline_stage(
         if app_res.data:
             app_id = app_res.data[0]["id"]
             current_app = app_res.data[0]
-            if req.stage_details:
-                existing_details = current_app.get("stage_details") or {}
-                update_data["stage_details"] = {**existing_details, **req.stage_details}
+            existing_details = current_app.get("stage_details") or {}
+            combined_details = {**existing_details, **(req.stage_details or {})}
+            update_data["stage_details"] = _filter_stage_details_for_status(req.target_stage, combined_details)
                 
             res = supabase.table("applications").update(update_data).eq("id", app_id).execute()
             return {"message": f"Moved to {req.target_stage}", "application": res.data[0]}
@@ -600,7 +621,7 @@ def move_pipeline_stage(
                 "job_id": target_job,
                 "candidate_id": req.candidate_id,
                 "status": req.target_stage,
-                "stage_details": req.stage_details or {},
+                "stage_details": _filter_stage_details_for_status(req.target_stage, req.stage_details or {}),
                 "applied_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
             }
             res = supabase.table("applications").insert(new_app).execute()

@@ -118,6 +118,46 @@ export default function KanbanPipelinePage() {
     }
   };
 
+  const getAllowedStagesForCurrent = (currentStageId) => {
+    switch (currentStageId) {
+      case 'applied':
+        return [
+          { id: 'shortlisted', label: '⭐ 2. Shortlist Candidate' },
+          { id: 'rejected', label: '❌ Archive / Reject' }
+        ];
+      case 'shortlisted':
+        return [
+          { id: 'technical_assessment', label: '💻 3. Schedule Tech Assessment' },
+          { id: 'applied', label: '📥 Move back to Applied' },
+          { id: 'rejected', label: '❌ Archive / Reject' }
+        ];
+      case 'technical_assessment':
+        return [
+          { id: 'interview_scheduled', label: '🎙️ 4. Pass & Schedule Interview' },
+          { id: 'shortlisted', label: '⭐ Move back to Shortlisted' },
+          { id: 'rejected', label: '❌ Archive / Reject' }
+        ];
+      case 'interview_scheduled':
+        return [
+          { id: 'offer_extended', label: '🎉 5. Pass & Extend Job Offer' },
+          { id: 'technical_assessment', label: '💻 Move back to Tech Assessment' },
+          { id: 'rejected', label: '❌ Archive / Reject' }
+        ];
+      case 'offer_extended':
+        return [
+          { id: 'interview_scheduled', label: '🎙️ Move back to Interview' },
+          { id: 'rejected', label: '❌ Archive / Reject' }
+        ];
+      case 'rejected':
+        return [
+          { id: 'applied', label: '📥 Re-open to Applied' },
+          { id: 'shortlisted', label: '⭐ Re-open to Shortlisted' }
+        ];
+      default:
+        return STAGE_CONFIG;
+    }
+  };
+
   const getMaskedCandidate = (candidate) => {
     if (!isBlindMode) return candidate;
     const cid = String(candidate.id || candidate.user_id || '999');
@@ -404,22 +444,23 @@ export default function KanbanPipelinePage() {
                             </button>
                           </div>
 
-                          {/* Scheduling & Stage Dispatch Action Toolbar */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '4px' }}>
-                            {col.id === 'technical_assessment' && (
-                              <>
+                          {/* Strict Level-by-Level Stage Succession Toolbar */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                            {/* STAGE 1: APPLIED */}
+                            {col.id === 'applied' && (
+                              <div style={{ display: 'flex', gap: '5px' }}>
                                 <button
                                   type="button"
-                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'technical_assessment' })}
+                                  onClick={() => handleMoveStage(item, 'shortlisted')}
                                   style={{
-                                    width: '100%',
-                                    background: '#ecfeff',
-                                    color: '#0891b2',
-                                    border: '1px solid #a5f3fc',
+                                    flex: 1,
+                                    background: '#f5f3ff',
+                                    color: '#6d28d9',
+                                    border: '1px solid #ddd6fe',
                                     borderRadius: '6px',
-                                    padding: '6px 8px',
+                                    padding: '7px 8px',
                                     fontSize: '11px',
-                                    fontWeight: '700',
+                                    fontWeight: '800',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
@@ -427,16 +468,83 @@ export default function KanbanPipelinePage() {
                                     gap: '5px'
                                   }}
                                 >
-                                  <Calendar size={13} /> 💻 Edit Test Schedule
+                                  ⭐ Shortlist for Assessment
                                 </button>
                                 <button
                                   type="button"
-                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'interview_scheduled' })}
+                                  onClick={() => handleMoveStage(item, 'rejected')}
+                                  style={{
+                                    background: '#fef2f2',
+                                    color: '#dc2626',
+                                    border: '1px solid #fecaca',
+                                    borderRadius: '6px',
+                                    padding: '7px 10px',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer'
+                                  }}
+                                  title="Reject Candidate"
+                                >
+                                  ❌
+                                </button>
+                              </div>
+                            )}
+
+                            {/* STAGE 2: SHORTLISTED */}
+                            {col.id === 'shortlisted' && (
+                              <div style={{ display: 'flex', gap: '5px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'technical_assessment' })}
+                                  style={{
+                                    flex: 1,
+                                    background: '#ecfeff',
+                                    color: '#0891b2',
+                                    border: '1px solid #a5f3fc',
+                                    borderRadius: '6px',
+                                    padding: '7px 8px',
+                                    fontSize: '11px',
+                                    fontWeight: '800',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: '5px'
+                                  }}
+                                >
+                                  <Calendar size={13} /> 💻 Schedule Tech Test
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleMoveStage(item, 'rejected')}
+                                  style={{
+                                    background: '#fef2f2',
+                                    color: '#dc2626',
+                                    border: '1px solid #fecaca',
+                                    borderRadius: '6px',
+                                    padding: '7px 10px',
+                                    fontSize: '11px',
+                                    fontWeight: '700',
+                                    cursor: 'pointer'
+                                  }}
+                                  title="Reject Candidate"
+                                >
+                                  ❌
+                                </button>
+                              </div>
+                            )}
+
+                            {/* STAGE 3: TECHNICAL ASSESSMENT */}
+                            {col.id === 'technical_assessment' && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'technical_assessment' })}
                                   style={{
                                     width: '100%',
-                                    background: '#f5f3ff',
-                                    color: '#7c3aed',
-                                    border: '1px solid #ddd6fe',
+                                    background: '#f0f9ff',
+                                    color: '#0369a1',
+                                    border: '1px solid #bae6fd',
                                     borderRadius: '6px',
                                     padding: '5px 8px',
                                     fontSize: '11px',
@@ -448,13 +556,54 @@ export default function KanbanPipelinePage() {
                                     gap: '5px'
                                   }}
                                 >
-                                  <ArrowRight size={13} /> 🎙️ Advance to Interview
+                                  <Calendar size={12} /> 💻 Edit Test Details
                                 </button>
-                              </>
+                                <div style={{ display: 'flex', gap: '5px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'interview_scheduled' })}
+                                    style={{
+                                      flex: 1,
+                                      background: '#fffbeb',
+                                      color: '#b45309',
+                                      border: '1px solid #fde68a',
+                                      borderRadius: '6px',
+                                      padding: '6px 8px',
+                                      fontSize: '11px',
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '5px'
+                                    }}
+                                  >
+                                    <ArrowRight size={13} /> 🎙️ Pass & Schedule Interview
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveStage(item, 'rejected')}
+                                    style={{
+                                      background: '#fef2f2',
+                                      color: '#dc2626',
+                                      border: '1px solid #fecaca',
+                                      borderRadius: '6px',
+                                      padding: '6px 10px',
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Reject Candidate"
+                                  >
+                                    ❌
+                                  </button>
+                                </div>
+                              </div>
                             )}
 
+                            {/* STAGE 4: INTERVIEW SCHEDULED */}
                             {col.id === 'interview_scheduled' && (
-                              <>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
                                 <button
                                   type="button"
                                   onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'interview_scheduled' })}
@@ -464,27 +613,6 @@ export default function KanbanPipelinePage() {
                                     color: '#b45309',
                                     border: '1px solid #fde68a',
                                     borderRadius: '6px',
-                                    padding: '6px 8px',
-                                    fontSize: '11px',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '5px'
-                                  }}
-                                >
-                                  <Calendar size={13} /> 🎙️ Edit Interview Schedule
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'offer_extended' })}
-                                  style={{
-                                    width: '100%',
-                                    background: '#ecfdf5',
-                                    color: '#059669',
-                                    border: '1px solid #a7f3d0',
-                                    borderRadius: '6px',
                                     padding: '5px 8px',
                                     fontSize: '11px',
                                     fontWeight: '700',
@@ -495,11 +623,52 @@ export default function KanbanPipelinePage() {
                                     gap: '5px'
                                   }}
                                 >
-                                  <ArrowRight size={13} /> 🎉 Extend Job Offer
+                                  <Calendar size={12} /> 🎙️ Edit Interview Schedule
                                 </button>
-                              </>
+                                <div style={{ display: 'flex', gap: '5px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'offer_extended' })}
+                                    style={{
+                                      flex: 1,
+                                      background: '#ecfdf5',
+                                      color: '#059669',
+                                      border: '1px solid #a7f3d0',
+                                      borderRadius: '6px',
+                                      padding: '6px 8px',
+                                      fontSize: '11px',
+                                      fontWeight: '800',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '5px'
+                                    }}
+                                  >
+                                    <ArrowRight size={13} /> 🎉 Pass & Extend Offer
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveStage(item, 'rejected')}
+                                    style={{
+                                      background: '#fef2f2',
+                                      color: '#dc2626',
+                                      border: '1px solid #fecaca',
+                                      borderRadius: '6px',
+                                      padding: '6px 10px',
+                                      fontSize: '11px',
+                                      fontWeight: '700',
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Reject Candidate"
+                                  >
+                                    ❌
+                                  </button>
+                                </div>
+                              </div>
                             )}
 
+                            {/* STAGE 5: OFFER EXTENDED */}
                             {col.id === 'offer_extended' && (
                               <button
                                 type="button"
@@ -520,61 +689,45 @@ export default function KanbanPipelinePage() {
                                   gap: '5px'
                                 }}
                               >
-                                <Calendar size={13} /> 🎉 Manage / Edit Offer
+                                <Calendar size={13} /> 🎉 Manage / Edit Offer Terms
                               </button>
                             )}
 
-                            {['applied', 'shortlisted'].includes(col.id) && (
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'technical_assessment' })}
-                                  style={{
-                                    background: '#ecfeff',
-                                    color: '#0891b2',
-                                    border: '1px solid #a5f3fc',
-                                    borderRadius: '5px',
-                                    padding: '5px 4px',
-                                    fontSize: '10px',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '3px'
-                                  }}
-                                >
-                                  💻 Schedule Test
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setActiveScheduleCandidate({ candidate: item, stage: 'interview_scheduled' })}
-                                  style={{
-                                    background: '#f5f3ff',
-                                    color: '#7c3aed',
-                                    border: '1px solid #ddd6fe',
-                                    borderRadius: '5px',
-                                    padding: '5px 4px',
-                                    fontSize: '10px',
-                                    fontWeight: '700',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '3px'
-                                  }}
-                                >
-                                  🎙️ Interview
-                                </button>
-                              </div>
+                            {/* STAGE 6: REJECTED */}
+                            {col.id === 'rejected' && (
+                              <button
+                                type="button"
+                                onClick={() => handleMoveStage(item, 'applied')}
+                                style={{
+                                  width: '100%',
+                                  background: '#f8fafc',
+                                  color: '#475569',
+                                  border: '1px solid #cbd5e1',
+                                  borderRadius: '6px',
+                                  padding: '6px 8px',
+                                  fontSize: '11px',
+                                  fontWeight: '700',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '5px'
+                                }}
+                              >
+                                🔄 Re-evaluate & Move to Applied
+                              </button>
                             )}
                           </div>
 
                           {/* Stage Transition Selector */}
                           <div style={{ marginTop: '2px' }}>
                             <select
-                              value={col.id}
-                              onChange={(e) => handleMoveStage(item, e.target.value)}
+                              value=""
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleMoveStage(item, e.target.value);
+                                }
+                              }}
                               style={{
                                 width: '100%',
                                 padding: '4px 6px',
@@ -586,10 +739,10 @@ export default function KanbanPipelinePage() {
                                 fontWeight: '600'
                               }}
                             >
-                              <option disabled value="">Move to stage...</option>
-                              {STAGE_CONFIG.map(s => (
+                              <option value="">Advance / Move Stage...</option>
+                              {getAllowedStagesForCurrent(col.id).map(s => (
                                 <option key={s.id} value={s.id}>
-                                  {s.icon} {s.label}
+                                  {s.label}
                                 </option>
                               ))}
                             </select>
