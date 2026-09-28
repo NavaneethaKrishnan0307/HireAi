@@ -131,7 +131,7 @@ class CandidateRanker:
             skill_weight=weights["skills"]
         )
 
-        return {
+        match_payload = {
             "overall_score": overall_score,
             "skill_score": skill_score,
             "experience_score": exp_score,
@@ -153,6 +153,12 @@ class CandidateRanker:
                 "certifications_rule": cert_res
             }
         }
+
+        # Attach Explainable AI mathematical proof trace and production rule-based interview questions
+        match_payload["proof_trace"] = RuleEngine.generate_proof_trace(candidate_data, job_data, match_payload)
+        match_payload["interview_questions"] = RuleEngine.generate_interview_questions(candidate_data, job_data)
+
+        return match_payload
 
     @classmethod
     def generate_skill_gap_advice(

@@ -131,7 +131,7 @@ class CandidateRanker:
             skill_weight=weights["skills"]
         )
 
-        return {
+        match_payload = {
             "overall_score": overall_score,
             "skill_score": skill_score,
             "experience_score": exp_score,
@@ -153,6 +153,12 @@ class CandidateRanker:
                 "certifications_rule": cert_res
             }
         }
+
+        # Attach Explainable AI mathematical proof trace and production rule-based interview questions
+        match_payload["proof_trace"] = RuleEngine.generate_proof_trace(candidate_data, job_data, match_payload)
+        match_payload["interview_questions"] = RuleEngine.generate_interview_questions(candidate_data, job_data)
+
+        return match_payload
 
     @classmethod
     def generate_skill_gap_advice(
@@ -497,7 +503,9 @@ class CandidateRanker:
                     "is_domain_mismatch": eval_res.get("is_domain_mismatch", False),
                     "domain_status": eval_res.get("domain_status", "Direct Domain Fit"),
                     "domain_warning": eval_res.get("domain_warning"),
-                    "skill_gap_advice": eval_res["skill_gap_advice"]
+                    "skill_gap_advice": eval_res["skill_gap_advice"],
+                    "proof_trace": eval_res.get("proof_trace"),
+                    "interview_questions": eval_res.get("interview_questions")
                 })
             job_matrix.sort(key=lambda x: x["match_score"], reverse=True)
 

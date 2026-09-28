@@ -1,10 +1,15 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, XCircle, Sparkles, Award, GraduationCap, Clock, FileText, User, Lightbulb } from 'lucide-react';
+import { X, CheckCircle, XCircle, Sparkles, Award, GraduationCap, Clock, FileText, User, Lightbulb, HelpCircle, ShieldCheck } from 'lucide-react';
 import { HRAPI } from '../services/api';
 import ResumeReportModal from './ResumeReportModal';
+import InterviewQuestionsModal from './InterviewQuestionsModal';
+import ProofTraceModal from './ProofTraceModal';
 
 export default function MatchModal({ candidate, jobId, onClose, onStatusChange }) {
   const [showReport, setShowReport] = useState(false);
+  const [showQuestions, setShowQuestions] = useState(false);
+  const [showProofTrace, setShowProofTrace] = useState(false);
+
   if (!candidate) return null;
 
   const match = candidate.match_details || {};
@@ -17,6 +22,8 @@ export default function MatchModal({ candidate, jobId, onClose, onStatusChange }
   ];
   const skillGapAdvice = match.skill_gap_advice || [];
   const weights = match.applied_weights || { skills: 0.50, experience: 0.25, education: 0.15, additional: 0.10 };
+  const proofTrace = candidate.proof_trace || match.proof_trace;
+  const interviewQuestions = candidate.interview_questions || match.interview_questions || [];
 
   const handleStatusUpdate = async (newStatus) => {
     try {
@@ -35,7 +42,7 @@ export default function MatchModal({ candidate, jobId, onClose, onStatusChange }
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-card" style={{ maxWidth: '680px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal-card" style={{ maxWidth: '720px', maxHeight: '90vh', overflowY: 'auto' }} onClick={(e) => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{ width: '48px', height: '48px', borderRadius: '50%', backgroundColor: '#f1f5f9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -73,6 +80,53 @@ export default function MatchModal({ candidate, jobId, onClose, onStatusChange }
           <div style={{ fontSize: '32px', fontWeight: '900', color: '#059669' }}>
             {score}%
           </div>
+        </div>
+
+        {/* Quick Tools Header Buttons */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+          <button
+            type="button"
+            onClick={() => setShowProofTrace(true)}
+            style={{
+              flex: 1,
+              backgroundColor: '#f0fdf4',
+              color: '#15803d',
+              border: '1px solid #bbf7d0',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+          >
+            <ShieldCheck size={14} /> Decision Proof Tree
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setShowQuestions(true)}
+            style={{
+              flex: 1,
+              backgroundColor: '#eff6ff',
+              color: '#2563eb',
+              border: '1px solid #bfdbfe',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px'
+            }}
+          >
+            <HelpCircle size={14} /> 5 AI Interview Questions
+          </button>
         </div>
 
         {/* Scoring Breakdown */}
@@ -199,7 +253,7 @@ export default function MatchModal({ candidate, jobId, onClose, onStatusChange }
                 padding: '10px 18px', 
                 borderRadius: '8px', 
                 fontWeight: '700', 
-                fontSize: '13px',
+                fontSize: '13px', 
                 cursor: 'pointer' 
               }}
             >
@@ -223,6 +277,22 @@ export default function MatchModal({ candidate, jobId, onClose, onStatusChange }
           candidateId={candidate.id || candidate.user_id}
           candidateName={candidate.full_name}
           onClose={() => setShowReport(false)}
+        />
+      )}
+
+      {showProofTrace && (
+        <ProofTraceModal
+          candidateName={candidate.full_name}
+          proofTrace={proofTrace}
+          onClose={() => setShowProofTrace(false)}
+        />
+      )}
+
+      {showQuestions && (
+        <InterviewQuestionsModal
+          candidate={candidate}
+          questions={interviewQuestions}
+          onClose={() => setShowQuestions(false)}
         />
       )}
     </div>

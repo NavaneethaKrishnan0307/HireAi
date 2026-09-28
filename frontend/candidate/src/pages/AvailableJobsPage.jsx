@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { CandidateAPI } from '../services/api';
-import { MapPin, Briefcase, IndianRupee, Sparkles, CheckCircle2, Search, Lightbulb, ArrowUpRight } from 'lucide-react';
+import { MapPin, Briefcase, IndianRupee, Sparkles, CheckCircle2, Search, Lightbulb, ArrowUpRight, Zap, Target } from 'lucide-react';
+import JobSimulatorModal from '../components/JobSimulatorModal';
 
 export default function AvailableJobsPage() {
   const [jobs, setJobs] = useState([]);
@@ -8,6 +9,7 @@ export default function AvailableJobsPage() {
   const [applyingId, setApplyingId] = useState(null);
   const [appliedJobs, setAppliedJobs] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [simulatingJob, setSimulatingJob] = useState(null);
 
   useEffect(() => {
     loadJobs();
@@ -179,7 +181,27 @@ export default function AvailableJobsPage() {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => setSimulatingJob(job)}
+                    style={{
+                      backgroundColor: '#f8fafc',
+                      color: '#0f172a',
+                      border: '1px solid #cbd5e1',
+                      padding: '10px 18px',
+                      borderRadius: '8px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <Zap size={14} color="#2563eb" /> Simulate Match & Skill Delta
+                  </button>
+
                   {hasApplied ? (
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#059669', fontWeight: '700', fontSize: '13px', padding: '8px 16px', background: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
                       <CheckCircle2 size={16} /> Application Submitted
@@ -199,6 +221,14 @@ export default function AvailableJobsPage() {
             );
           })}
         </div>
+      )}
+
+      {simulatingJob && (
+        <JobSimulatorModal
+          job={simulatingJob}
+          onApply={(jobId) => handleApply(jobId)}
+          onClose={() => setSimulatingJob(null)}
+        />
       )}
     </div>
   );

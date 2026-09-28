@@ -204,5 +204,33 @@ export const HRAPI = {
     });
     if (!res.ok) throw new Error('Failed to load candidate resume report');
     return res.json();
+  },
+
+  // Interactive Kanban Recruitment Pipeline
+  async getPipeline(jobId = null) {
+    const url = jobId ? `${API_BASE}/api/hr/pipeline?job_id=${encodeURIComponent(jobId)}` : `${API_BASE}/api/hr/pipeline`;
+    const res = await fetch(url, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to load recruitment pipeline');
+    return res.json();
+  },
+
+  async movePipelineStage({ applicationId, candidateId, jobId, targetStage }) {
+    const res = await fetch(`${API_BASE}/api/hr/pipeline/move`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader()
+      },
+      body: JSON.stringify({
+        application_id: applicationId,
+        candidate_id: candidateId,
+        job_id: jobId,
+        target_stage: targetStage
+      })
+    });
+    if (!res.ok) throw new Error('Failed to advance pipeline stage');
+    return res.json();
   }
 };

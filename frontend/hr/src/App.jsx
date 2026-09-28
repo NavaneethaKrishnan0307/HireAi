@@ -6,6 +6,7 @@ import JobFindPage from './pages/JobFindPage';
 import CreateJobPage from './pages/CreateJobPage';
 import CandidateMatchesPage from './pages/CandidateMatchesPage';
 import AllCandidatesPage from './pages/AllCandidatesPage';
+import KanbanPipelinePage from './pages/KanbanPipelinePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { HRAPI } from './services/api';
@@ -38,6 +39,12 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         
+        <Route path="/pipeline" element={
+          <ProtectedLayout>
+            <KanbanPipelinePage />
+          </ProtectedLayout>
+        } />
+
         <Route path="/job-find" element={
           <ProtectedLayout>
             <JobFindPage />

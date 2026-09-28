@@ -331,3 +331,99 @@ def get_candidate_resume_report(user: Dict[str, Any] = Depends(require_candidate
 
     report = CandidateRanker.generate_resume_audit_report(cand_data, active_jobs)
     return report
+
+
+from pydantic import BaseModel
+from typing import Optional
+
+class SimulateMatchRequest(BaseModel):
+    added_skills: Optional[List[str]] = []
+    simulated_years_experience: Optional[float] = None
+    simulated_education: Optional[str] = None
+
+class TransformBulletRequest(BaseModel):
+    raw_bullet: str
+
+
+@router.post("/jobs/{job_id}/simulate")
+def simulate_job_match(
+    job_id: str,
+    req: SimulateMatchRequest,
+    user: Dict[str, Any] = Depends(require_candidate)
+):
+    """
+    Pure Classical FOAI: Pre-Application Heuristic Job Simulator.
+    Computes difference vector Delta(Job, Candidate), state-space projection,
+    and returns projected score boost + proof trace without submitting an official application.
+    """
+    supabase = get_supabase()
+    user_id = user["sub"]
+
+    job_res = supabase.table("jobs").select("*").eq("id", job_id).execute()
+    if not job_res.data:
+        raise HTTPException(status_code=404, detail="Job opening not found")
+    job = job_res.data[0]
+
+    cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
+    cand_data = dict(cand_res.data[0]) if cand_res.data else {}
+
+    # Base match calculation
+    base_match = CandidateRanker.calculate_candidate_match(cand_data, job)
+
+    # Simulated candidate profile
+    simulated_cand = dict(cand_data)
+    current_skills = list(cand_data.get("parsed_skills", []) or [])
+    new_skills = list(set(current_skills + [s.strip() for s in (req.added_skills or []) if s.strip()]))
+    simulated_cand["parsed_skills"] = new_skills
+
+    if req.simulated_years_experience is not None:
+        simulated_cand["years_of_experience"] = float(req.simulated_years_experience)
+    if req.simulated_education:
+        simulated_cand["education"] = req.simulated_education
+
+    # Simulated match calculation
+    simulated_match = CandidateRanker.calculate_candidate_match(simulated_cand, job)
+
+    score_delta = round(simulated_match["overall_score"] - base_match["overall_score"], 1)
+
+    # A* Heuristic roadmap ranking: Calculate individual marginal utility boost for each missing skill
+    missing_required = base_match.get("missing_skills", [])
+    marginal_boosts = []
+    for skill in missing_required:
+        hypo_cand = dict(cand_data)
+        hypo_cand["parsed_skills"] = list(set(current_skills + [skill]))
+        hypo_eval = CandidateRanker.calculate_candidate_match(hypo_cand, job)
+        boost = round(hypo_eval["overall_score"] - base_match["overall_score"], 1)
+        marginal_boosts.append({
+            "skill": skill,
+            "score_boost_percent": boost,
+            "projected_total": hypo_eval["overall_score"],
+            "difficulty": "Moderate (1-2 weeks)" if boost <= 15 else "High Impact"
+        })
+    marginal_boosts.sort(key=lambda x: x["score_boost_percent"], reverse=True)
+
+    return {
+        "job_title": job.get("title"),
+        "company": job.get("company"),
+        "base_score": base_match["overall_score"],
+        "simulated_score": simulated_match["overall_score"],
+        "score_delta": score_delta,
+        "base_match": base_match,
+        "simulated_match": simulated_match,
+        "heuristic_skill_roadmap": marginal_boosts,
+        "actionable_insight": f"Acquiring the simulated skills will boost your candidate match rating by +{score_delta}% (From {base_match['overall_score']}% to {simulated_match['overall_score']}%)."
+    }
+
+
+@router.post("/transform-bullet")
+def transform_resume_bullet(
+    req: TransformBulletRequest,
+    user: Dict[str, Any] = Depends(require_candidate)
+):
+    """
+    Pure Classical FOAI: Context-Free Grammar (CFG) STAR Bullet Transformer.
+    Converts weak/passive phrases into deterministic STAR power templates.
+    """
+    from backend.services.rule_engine import RuleEngine
+    result = RuleEngine.transform_to_star_bullets(req.raw_bullet)
+    return result

@@ -444,3 +444,156 @@ def get_hr_candidate_report(candidate_id: str, user: Dict[str, Any] = Depends(re
 
     report = CandidateRanker.generate_resume_audit_report(enriched, active_jobs)
     return report
+
+
+from pydantic import BaseModel
+
+class PipelineMoveRequest(BaseModel):
+    application_id: Optional[str] = None
+    candidate_id: Optional[str] = None
+    job_id: Optional[str] = None
+    target_stage: str
+
+
+@router.get("/pipeline")
+def get_hr_pipeline(
+    job_id: Optional[str] = None,
+    user: Dict[str, Any] = Depends(require_hr)
+):
+    """
+    Interactive Kanban Recruitment Pipeline:
+    Returns applications grouped by stage with explainable scores, interview questions, and proof trees.
+    Stages: applied, shortlisted, technical_assessment, interview_scheduled, offer_extended, rejected
+    """
+    supabase = get_supabase()
+    
+    # Fetch jobs
+    jobs_res = supabase.table("jobs").select("*").execute()
+    jobs = jobs_res.data or []
+    jobs_map = {j["id"]: j for j in jobs}
+    
+    # Default active job if not provided
+    active_job = jobs_map.get(job_id) if job_id else (jobs[0] if jobs else None)
+    
+    # Fetch all applications
+    app_query = supabase.table("applications").select("*")
+    if job_id and job_id != "all":
+        app_query = app_query.eq("job_id", job_id)
+    apps_res = app_query.execute()
+    apps = apps_res.data or []
+    
+    # Fetch candidates & users
+    cands_res = supabase.table("candidates").select("*").execute()
+    cands_map = {c["id"]: c for c in (cands_res.data or [])}
+    
+    users_res = supabase.table("users").select("*").execute()
+    users_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
+    
+    # Build stage buckets
+    stages = {
+        "applied": [],
+        "shortlisted": [],
+        "technical_assessment": [],
+        "interview_scheduled": [],
+        "offer_extended": [],
+        "rejected": []
+    }
+    
+    for app in apps:
+        cid = str(app.get("candidate_id") or "")
+        cand = cands_map.get(cid) or next((c for c in (cands_res.data or []) if str(c.get("id")) == cid or str(c.get("user_id")) == cid), {})
+        
+        enriched_cand = _enrich_candidate(cand, users_map)
+        target_job = jobs_map.get(app.get("job_id")) or active_job or {
+            "title": "Software Engineer",
+            "required_skills": ["Python", "SQL"],
+            "min_experience": 2.0
+        }
+        
+        match_details = CandidateRanker.calculate_candidate_match(enriched_cand, target_job)
+        
+        # Raw status normalized to one of the 6 stages
+        raw_status = str(app.get("status") or "applied").lower()
+        if raw_status in ["applied", "screened", "new"]:
+            stage_key = "applied"
+        elif raw_status in ["shortlisted", "reviewed"]:
+            stage_key = "shortlisted"
+        elif raw_status in ["technical_assessment", "assessment", "coding_round"]:
+            stage_key = "technical_assessment"
+        elif raw_status in ["interview_scheduled", "interview", "interviewing"]:
+            stage_key = "interview_scheduled"
+        elif raw_status in ["offer_extended", "hired", "offer"]:
+            stage_key = "offer_extended"
+        elif raw_status in ["rejected", "archived", "declined"]:
+            stage_key = "rejected"
+        else:
+            stage_key = "applied"
+            
+        stages[stage_key].append({
+            "application_id": app.get("id"),
+            "candidate_id": cand.get("id") or cid,
+            "job_id": app.get("job_id"),
+            "job_title": target_job.get("title", "Engineering"),
+            "company": target_job.get("company", "TechCorp"),
+            "stage": stage_key,
+            "status": app.get("status"),
+            "applied_at": app.get("applied_at"),
+            "candidate": enriched_cand,
+            "match_score": match_details["overall_score"],
+            "match_details": match_details,
+            "proof_trace": match_details.get("proof_trace"),
+            "interview_questions": match_details.get("interview_questions", [])
+        })
+
+    # Sort each bucket by match score descending
+    for k in stages:
+        stages[k].sort(key=lambda x: x["match_score"], reverse=True)
+
+    return {
+        "jobs": jobs,
+        "active_job": active_job,
+        "pipeline_stages": stages,
+        "total_in_pipeline": len(apps)
+    }
+
+
+@router.post("/pipeline/move")
+def move_pipeline_stage(
+    req: PipelineMoveRequest,
+    user: Dict[str, Any] = Depends(require_hr)
+):
+    """
+    Update candidate's recruitment stage in the Kanban board.
+    """
+    supabase = get_supabase()
+    
+    if req.application_id:
+        res = supabase.table("applications").update({"status": req.target_stage}).eq("id", req.application_id).execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Application not found")
+        return {"message": f"Moved to {req.target_stage}", "application": res.data[0]}
+    
+    if req.candidate_id:
+        target_job = req.job_id
+        if not target_job:
+            jobs_res = supabase.table("jobs").select("id").execute()
+            if jobs_res.data:
+                target_job = jobs_res.data[0]["id"]
+        
+        # Check application
+        app_res = supabase.table("applications").select("*").eq("candidate_id", req.candidate_id).execute()
+        if app_res.data:
+            app_id = app_res.data[0]["id"]
+            res = supabase.table("applications").update({"status": req.target_stage}).eq("id", app_id).execute()
+            return {"message": f"Moved to {req.target_stage}", "application": res.data[0]}
+        else:
+            new_app = {
+                "job_id": target_job,
+                "candidate_id": req.candidate_id,
+                "status": req.target_stage,
+                "applied_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+            }
+            res = supabase.table("applications").insert(new_app).execute()
+            return {"message": f"Candidate added to {req.target_stage}", "application": res.data[0] if res.data else new_app}
+
+    raise HTTPException(status_code=400, detail="Missing application_id or candidate_id")

@@ -19,9 +19,11 @@ import {
   X,
   TrendingUp,
   ShieldCheck,
-  User
+  User,
+  Wand2
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
+import StarTransformerModal from '../components/StarTransformerModal';
 
 export default function ResumeAnalyzerPage() {
   const [report, setReport] = useState(null);
@@ -29,6 +31,7 @@ export default function ResumeAnalyzerPage() {
   const [error, setError] = useState(null);
   const [syncingName, setSyncingName] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState('');
+  const [activeStarBullet, setActiveStarBullet] = useState(null);
 
   useEffect(() => {
     loadReport();
@@ -325,6 +328,38 @@ export default function ResumeAnalyzerPage() {
         </div>
       )}
 
+      {/* Deterministic STAR Bullet Transformer Banner */}
+      <div style={{ background: 'linear-gradient(135deg, #fdf4ff, #faf5ff)', border: '1px solid #f0abfc', borderRadius: '10px', padding: '16px 20px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9333ea', fontWeight: '800', fontSize: '14px', marginBottom: '4px' }}>
+            <Sparkles size={16} /> Deterministic STAR Bullet Transformer & Optimizer (CFG Production Rules)
+          </div>
+          <p style={{ fontSize: '13px', color: '#6b21a8', margin: 0 }}>
+            Convert weak or passive resume phrases into verified STAR power templates with quantifiable metrics.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setActiveStarBullet('')}
+          style={{
+            backgroundColor: '#9333ea',
+            color: '#ffffff',
+            border: 'none',
+            padding: '10px 18px',
+            borderRadius: '8px',
+            fontSize: '13px',
+            fontWeight: '700',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: '0 2px 6px rgba(147, 51, 234, 0.25)'
+          }}
+        >
+          <Wand2 size={15} /> Launch STAR Transformer
+        </button>
+      </div>
+
       {/* Interactive Line-by-Line Document Inspector */}
       {lineAnalysis.length > 0 && (
         <div className="card" style={{ marginBottom: '24px', padding: '22px' }}>
@@ -375,9 +410,31 @@ export default function ResumeAnalyzerPage() {
                       <span style={{ color: '#94a3b8', fontSize: '11px', marginRight: '6px' }}>L{line.line_number}</span>
                       {line.text}
                     </p>
-                    <span style={{ backgroundColor: badgeBg, color: badgeTextColor, border: `1px solid ${borderColor}`, padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 }}>
-                      {line.badge}
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                      <span style={{ backgroundColor: badgeBg, color: badgeTextColor, border: `1px solid ${borderColor}`, padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                        {line.badge}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setActiveStarBullet(line.text)}
+                        style={{
+                          background: '#fdf4ff',
+                          color: '#9333ea',
+                          border: '1px solid #f5d0fe',
+                          borderRadius: '4px',
+                          padding: '2px 8px',
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}
+                        title="Optimize line with STAR Transformer"
+                      >
+                        <Wand2 size={10} /> STAR Rewrite
+                      </button>
+                    </div>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
@@ -626,6 +683,13 @@ export default function ResumeAnalyzerPage() {
           </div>
         )}
       </div>
+
+      {activeStarBullet !== null && (
+        <StarTransformerModal
+          initialBullet={activeStarBullet}
+          onClose={() => setActiveStarBullet(null)}
+        />
+      )}
     </div>
   );
 }

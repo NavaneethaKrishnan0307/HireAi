@@ -130,5 +130,35 @@ export const CandidateAPI = {
     });
     if (!res.ok) throw new Error('Failed to load resume audit report');
     return res.json();
+  },
+
+  // Pre-Application Heuristic Job Simulator
+  async simulateJobMatch(jobId, simulationParams = {}) {
+    const res = await fetch(`${API_BASE}/api/candidate/jobs/${jobId}/simulate`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader()
+      },
+      body: JSON.stringify(simulationParams)
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Failed to simulate job match');
+    return data;
+  },
+
+  // Deterministic STAR Bullet Transformer
+  async transformBullet(rawBullet) {
+    const res = await fetch(`${API_BASE}/api/candidate/transform-bullet`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...getAuthHeader()
+      },
+      body: JSON.stringify({ raw_bullet: rawBullet })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Failed to transform bullet point');
+    return data;
   }
 };

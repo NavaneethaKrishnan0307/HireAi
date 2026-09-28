@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Plus, Briefcase, Users, Folder, Settings, LogOut } from 'lucide-react';
+import { Plus, Briefcase, Users, Folder, Settings, LogOut, Columns } from 'lucide-react';
 import { HRAPI } from '../services/api';
 
 export default function Sidebar() {
@@ -18,6 +18,14 @@ export default function Sidebar() {
         >
           <Plus size={18} strokeWidth={2.5} />
           <span>Create Job</span>
+        </NavLink>
+
+        <NavLink
+          to="/pipeline"
+          className={({ isActive }) => `hr-nav-item ${isActive ? 'active' : ''}`}
+        >
+          <Columns size={18} />
+          <span>Hiring Pipeline</span>
         </NavLink>
 
         <NavLink
