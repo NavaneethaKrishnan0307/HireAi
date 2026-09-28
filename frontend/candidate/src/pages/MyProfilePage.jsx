@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { CandidateAPI } from '../services/api';
-import { User, Mail, Phone, MapPin, Briefcase, GraduationCap, Code, CheckCircle, Plus, X, Sparkles } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Briefcase, GraduationCap, Code, CheckCircle, Plus, X, Sparkles, Globe } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { COUNTRY_CODES, parsePhoneNumber } from '../constants/countryCodes';
+import { COUNTRIES_AND_CITIES, parseLocation } from '../constants/countriesAndCities';
 
 export default function MyProfilePage() {
   const getCachedProfile = () => {
@@ -16,6 +17,7 @@ export default function MyProfilePage() {
 
   const cachedData = getCachedProfile();
   const initialPhoneParsed = parsePhoneNumber(cachedData?.phone);
+  const initialLocParsed = parseLocation(cachedData?.location);
 
   const [profile, setProfile] = useState(cachedData);
   const [loading, setLoading] = useState(!cachedData);
@@ -23,8 +25,18 @@ export default function MyProfilePage() {
   const [successMsg, setSuccessMsg] = useState('');
   const [newSkill, setNewSkill] = useState('');
 
+  // Phone state
   const [selectedCountryCode, setSelectedCountryCode] = useState(initialPhoneParsed.dialCode);
   const [phoneNumber, setPhoneNumber] = useState(initialPhoneParsed.number);
+
+  // Country & City state
+  const [selectedCountry, setSelectedCountry] = useState(initialLocParsed.country);
+  const [selectedCity, setSelectedCity] = useState(initialLocParsed.city);
+  const [isCustomCity, setIsCustomCity] = useState(initialLocParsed.isCustomCity);
+  const [customCityText, setCustomCityText] = useState(initialLocParsed.customCity);
+
+  const currentCountryObj = COUNTRIES_AND_CITIES.find(c => c.country === selectedCountry) || COUNTRIES_AND_CITIES[0];
+  const availableCities = currentCountryObj?.cities || [];
 
   const [formData, setFormData] = useState({
     full_name: cachedData?.full_name || '',
@@ -41,6 +53,13 @@ export default function MyProfilePage() {
     loadProfile();
   }, []);
 
+  const buildLocationString = (country, city, isCustom, customText) => {
+    const finalCity = (isCustom || city === 'Other') ? customText.trim() : city;
+    if (!finalCity && !country) return '';
+    if (!finalCity) return country;
+    return `${finalCity}, ${country}`;
+  };
+
   const loadProfile = async () => {
     try {
       const data = await CandidateAPI.getProfile();
@@ -48,9 +67,15 @@ export default function MyProfilePage() {
         setProfile(data);
         localStorage.setItem('candidate_profile_cache', JSON.stringify(data));
         
-        const parsed = parsePhoneNumber(data.phone);
-        setSelectedCountryCode(parsed.dialCode);
-        setPhoneNumber(parsed.number);
+        const parsedP = parsePhoneNumber(data.phone);
+        setSelectedCountryCode(parsedP.dialCode);
+        setPhoneNumber(parsedP.number);
+
+        const parsedL = parseLocation(data.location);
+        setSelectedCountry(parsedL.country);
+        setSelectedCity(parsedL.city);
+        setIsCustomCity(parsedL.isCustomCity);
+        setCustomCityText(parsedL.customCity);
 
         setFormData({
           full_name: data.full_name || '',
@@ -84,6 +109,39 @@ export default function MyProfilePage() {
     setFormData(prev => ({ ...prev, phone: combined }));
   };
 
+  const handleCountryChange = (e) => {
+    const newCountry = e.target.value;
+    setSelectedCountry(newCountry);
+    const cObj = COUNTRIES_AND_CITIES.find(c => c.country === newCountry);
+    const firstCity = cObj?.cities[0] || 'Remote';
+    setSelectedCity(firstCity);
+    setIsCustomCity(false);
+    setCustomCityText('');
+    const locStr = buildLocationString(newCountry, firstCity, false, '');
+    setFormData(prev => ({ ...prev, location: locStr }));
+  };
+
+  const handleCityChange = (e) => {
+    const newCity = e.target.value;
+    setSelectedCity(newCity);
+    if (newCity === 'Other') {
+      setIsCustomCity(true);
+      const locStr = buildLocationString(selectedCountry, 'Other', true, customCityText);
+      setFormData(prev => ({ ...prev, location: locStr }));
+    } else {
+      setIsCustomCity(false);
+      const locStr = buildLocationString(selectedCountry, newCity, false, '');
+      setFormData(prev => ({ ...prev, location: locStr }));
+    }
+  };
+
+  const handleCustomCityChange = (e) => {
+    const text = e.target.value;
+    setCustomCityText(text);
+    const locStr = buildLocationString(selectedCountry, 'Other', true, text);
+    setFormData(prev => ({ ...prev, location: locStr }));
+  };
+
   const handleAddSkill = (e) => {
     e.preventDefault();
     if (!newSkill.trim()) return;
@@ -112,9 +170,11 @@ export default function MyProfilePage() {
     try {
       setSaving(true);
       const finalPhone = phoneNumber.trim() ? `${selectedCountryCode} ${phoneNumber.trim()}` : '';
+      const finalLocation = buildLocationString(selectedCountry, selectedCity, isCustomCity, customCityText);
       const payload = {
         ...formData,
-        phone: finalPhone
+        phone: finalPhone,
+        location: finalLocation
       };
       // Immediately cache to localStorage so it is never lost on refresh
       localStorage.setItem('candidate_profile_cache', JSON.stringify(payload));
@@ -169,9 +229,11 @@ export default function MyProfilePage() {
         <div className="card">
           <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '18px' }}>Personal Information</h3>
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
             <div className="form-group">
-              <label className="form-label">Full Name</label>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <User size={14} color="#64748b" /> Full Name
+              </label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -180,8 +242,11 @@ export default function MyProfilePage() {
                 placeholder="Joe Candidate"
               />
             </div>
+
             <div className="form-group">
-              <label className="form-label">Email Address</label>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Mail size={14} color="#64748b" /> Email Address
+              </label>
               <input 
                 type="email" 
                 className="form-input" 
@@ -190,6 +255,7 @@ export default function MyProfilePage() {
                 placeholder="joe@example.com"
               />
             </div>
+
             <div className="form-group">
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Phone size={14} color="#64748b" /> Phone Number
@@ -229,15 +295,56 @@ export default function MyProfilePage() {
                 />
               </div>
             </div>
+
             <div className="form-group">
-              <label className="form-label">Location (City)</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                value={formData.location} 
-                onChange={(e) => setFormData({ ...formData, location: e.target.value })} 
-                placeholder="Bangalore, India"
-              />
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Globe size={14} color="#64748b" /> Country
+              </label>
+              <select
+                className="form-input"
+                value={selectedCountry}
+                onChange={handleCountryChange}
+                aria-label="Country Selection"
+                style={{ cursor: 'pointer', fontWeight: '500', backgroundColor: '#fff' }}
+              >
+                {COUNTRIES_AND_CITIES.map((item) => (
+                  <option key={item.country} value={item.country}>
+                    {item.flag} {item.country}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="form-group" style={{ gridColumn: 'span 2' }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <MapPin size={14} color="#64748b" /> City / Region (for {selectedCountry})
+              </label>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <select
+                  className="form-input"
+                  value={selectedCity}
+                  onChange={handleCityChange}
+                  aria-label="City Selection"
+                  style={{ flex: '1 1 240px', cursor: 'pointer', fontWeight: '500', backgroundColor: '#fff' }}
+                >
+                  {availableCities.map((city) => (
+                    <option key={city} value={city}>
+                      📍 {city}
+                    </option>
+                  ))}
+                  <option value="Other">✨ Other / Custom City...</option>
+                </select>
+                {isCustomCity && (
+                  <input 
+                    type="text" 
+                    className="form-input" 
+                    placeholder="Enter custom city..." 
+                    value={customCityText} 
+                    onChange={handleCustomCityChange} 
+                    style={{ flex: '1 1 240px' }}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
