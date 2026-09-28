@@ -19,11 +19,9 @@ import {
   X,
   TrendingUp,
   ShieldCheck,
-  User,
-  Wand2
+  User
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
-import StarTransformerModal from '../components/StarTransformerModal';
 
 export default function ResumeAnalyzerPage() {
   const [report, setReport] = useState(null);
@@ -31,7 +29,6 @@ export default function ResumeAnalyzerPage() {
   const [error, setError] = useState(null);
   const [syncingName, setSyncingName] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState('');
-  const [activeStarBullet, setActiveStarBullet] = useState(null);
 
   useEffect(() => {
     loadReport();
@@ -328,48 +325,16 @@ export default function ResumeAnalyzerPage() {
         </div>
       )}
 
-      {/* Deterministic STAR Bullet Transformer Banner */}
-      <div style={{ background: 'linear-gradient(135deg, #fdf4ff, #faf5ff)', border: '1px solid #e879f9', borderRadius: '12px', padding: '18px 22px', marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', boxShadow: '0 2px 8px rgba(168, 85, 247, 0.1)' }}>
-        <div style={{ flex: 1, minWidth: '280px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#9333ea', fontWeight: '800', fontSize: '15px', marginBottom: '4px' }}>
-            <Sparkles size={18} /> ✍️ Supercharge Your Resume Bullet Points (STAR Method)
-          </div>
-          <p style={{ fontSize: '13px', color: '#6b21a8', margin: 0, lineHeight: 1.4 }}>
-            Replace weak phrases (e.g. <em>"worked on backend"</em>) with high-impact power bullets (e.g. <em>"Architected backend APIs, cutting latency by 35%"</em>).
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setActiveStarBullet('')}
-          style={{
-            backgroundColor: '#9333ea',
-            color: '#ffffff',
-            border: 'none',
-            padding: '12px 22px',
-            borderRadius: '8px',
-            fontSize: '13px',
-            fontWeight: '800',
-            cursor: 'pointer',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            boxShadow: '0 2px 8px rgba(147, 51, 234, 0.3)'
-          }}
-        >
-          <Wand2 size={16} /> Open STAR Transformer & Examples
-        </button>
-      </div>
-
       {/* Interactive Line-by-Line Document Inspector */}
       {lineAnalysis.length > 0 && (
         <div className="card" style={{ marginBottom: '24px', padding: '22px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '10px' }}>
             <div>
               <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#0f172a', margin: '0 0 4px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <FileText size={18} color="#7c3aed" /> Line-by-Line Document Inspection & STAR Recommendations
+                <FileText size={18} color="#7c3aed" /> Line-by-Line Document Inspection
               </h3>
               <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>
-                Live annotation of every bullet point. Identifies passive phrasing, metrics, power verbs, and provides STAR rewrite suggestions.
+                Live annotation of every bullet point. Identifies passive phrasing, metrics, and power verbs.
               </p>
             </div>
             {lineSummary && (
@@ -410,31 +375,9 @@ export default function ResumeAnalyzerPage() {
                       <span style={{ color: '#94a3b8', fontSize: '11px', marginRight: '6px' }}>L{line.line_number}</span>
                       {line.text}
                     </p>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                      <span style={{ backgroundColor: badgeBg, color: badgeTextColor, border: `1px solid ${borderColor}`, padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap' }}>
-                        {line.badge}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setActiveStarBullet(line.text)}
-                        style={{
-                          background: '#fdf4ff',
-                          color: '#9333ea',
-                          border: '1px solid #f5d0fe',
-                          borderRadius: '4px',
-                          padding: '2px 8px',
-                          fontSize: '10px',
-                          fontWeight: '700',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '3px'
-                        }}
-                        title="Optimize line with STAR Transformer"
-                      >
-                        <Wand2 size={10} /> STAR Rewrite
-                      </button>
-                    </div>
+                    <span style={{ backgroundColor: badgeBg, color: badgeTextColor, border: `1px solid ${borderColor}`, padding: '2px 8px', borderRadius: '6px', fontSize: '11px', fontWeight: '700', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      {line.badge}
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
@@ -683,13 +626,6 @@ export default function ResumeAnalyzerPage() {
           </div>
         )}
       </div>
-
-      {activeStarBullet !== null && (
-        <StarTransformerModal
-          initialBullet={activeStarBullet}
-          onClose={() => setActiveStarBullet(null)}
-        />
-      )}
     </div>
   );
 }

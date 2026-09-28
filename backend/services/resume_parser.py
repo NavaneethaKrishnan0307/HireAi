@@ -341,7 +341,7 @@ class ResumeParser:
         """
         Perform in-depth line-by-line inspection of resume content.
         Evaluates impact, action verbs, quantifiable metrics, skills detected,
-        and provides instant actionable STAR rewrite guidance.
+        and provides instant actionable rewrite guidance.
         """
         if not text:
             return []

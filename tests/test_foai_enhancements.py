@@ -2,19 +2,6 @@ import pytest
 from backend.services.rule_engine import RuleEngine
 from backend.services.candidate_ranker import CandidateRanker
 
-def test_star_bullet_transformer():
-    # Test weak line transformation
-    raw = "worked on backend services for payment gateway"
-    res = RuleEngine.transform_to_star_bullets(raw)
-    
-    assert res["detected_passive_pattern"] == "worked on"
-    assert "payment gateway" in res["extracted_task_scope"]
-    assert len(res["variations"]) == 3
-    for var in res["variations"]:
-        assert "star_bullet" in var
-        assert "metric_result" in var
-        assert "situation_task" in var
-
 def test_interview_question_generation():
     candidate = {
         "parsed_skills": ["Python", "Django"],

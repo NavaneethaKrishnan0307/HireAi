@@ -145,20 +145,5 @@ export const CandidateAPI = {
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Failed to simulate job match');
     return data;
-  },
-
-  // Deterministic STAR Bullet Transformer
-  async transformBullet(rawBullet) {
-    const res = await fetch(`${API_BASE}/api/candidate/transform-bullet`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...getAuthHeader()
-      },
-      body: JSON.stringify({ raw_bullet: rawBullet })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || 'Failed to transform bullet point');
-    return data;
   }
 };

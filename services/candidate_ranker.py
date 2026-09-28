@@ -484,7 +484,7 @@ class CandidateRanker:
             recommendations.append("Ensure certifications and latest technical tools are prominently listed in a dedicated skills section")
 
         if passive_lines_count >= 1:
-            recommendations.append("Review Line-by-Line Inspection below and convert passive phrases into STAR-formatted power statements")
+            recommendations.append("Review Line-by-Line Inspection below and convert passive phrases into action-oriented statements")
 
         # 8. Job-Specific Fit Matrix across Open Platform with Strict Domain Analysis
         job_matrix = []

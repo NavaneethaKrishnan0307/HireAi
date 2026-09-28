@@ -341,9 +341,6 @@ class SimulateMatchRequest(BaseModel):
     simulated_years_experience: Optional[float] = None
     simulated_education: Optional[str] = None
 
-class TransformBulletRequest(BaseModel):
-    raw_bullet: str
-
 
 @router.post("/jobs/{job_id}/simulate")
 def simulate_job_match(
@@ -413,20 +410,3 @@ def simulate_job_match(
         "heuristic_skill_roadmap": marginal_boosts,
         "actionable_insight": f"Acquiring the simulated skills will boost your candidate match rating by +{score_delta}% (From {base_match['overall_score']}% to {simulated_match['overall_score']}%)."
     }
-
-
-@router.post("/transform-bullet")
-def transform_resume_bullet(
-    req: TransformBulletRequest,
-    user: Dict[str, Any] = Depends(require_candidate)
-):
-    """
-    Pure Classical FOAI: Context-Free Grammar (CFG) STAR Bullet Transformer.
-    Converts weak/passive phrases into deterministic STAR power templates.
-    """
-    try:
-        from backend.services.rule_engine import RuleEngine
-    except ImportError:
-        from services.rule_engine import RuleEngine
-    result = RuleEngine.transform_to_star_bullets(req.raw_bullet)
-    return result
