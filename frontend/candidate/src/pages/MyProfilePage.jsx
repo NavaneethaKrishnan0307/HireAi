@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { CandidateAPI } from '../services/api';
 import { User, Mail, Phone, MapPin, Briefcase, GraduationCap, Code, CheckCircle, Plus, X, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { COUNTRY_CODES, parsePhoneNumber } from '../constants/countryCodes';
 
 export default function MyProfilePage() {
   const getCachedProfile = () => {
@@ -14,11 +15,16 @@ export default function MyProfilePage() {
   };
 
   const cachedData = getCachedProfile();
+  const initialPhoneParsed = parsePhoneNumber(cachedData?.phone);
+
   const [profile, setProfile] = useState(cachedData);
   const [loading, setLoading] = useState(!cachedData);
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
   const [newSkill, setNewSkill] = useState('');
+
+  const [selectedCountryCode, setSelectedCountryCode] = useState(initialPhoneParsed.dialCode);
+  const [phoneNumber, setPhoneNumber] = useState(initialPhoneParsed.number);
 
   const [formData, setFormData] = useState({
     full_name: cachedData?.full_name || '',
@@ -41,6 +47,11 @@ export default function MyProfilePage() {
       if (data) {
         setProfile(data);
         localStorage.setItem('candidate_profile_cache', JSON.stringify(data));
+        
+        const parsed = parsePhoneNumber(data.phone);
+        setSelectedCountryCode(parsed.dialCode);
+        setPhoneNumber(parsed.number);
+
         setFormData({
           full_name: data.full_name || '',
           email: data.email || '',
@@ -57,6 +68,20 @@ export default function MyProfilePage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCountryCodeChange = (e) => {
+    const code = e.target.value;
+    setSelectedCountryCode(code);
+    const combined = phoneNumber.trim() ? `${code} ${phoneNumber.trim()}` : '';
+    setFormData(prev => ({ ...prev, phone: combined }));
+  };
+
+  const handlePhoneNumberChange = (e) => {
+    const num = e.target.value;
+    setPhoneNumber(num);
+    const combined = num.trim() ? `${selectedCountryCode} ${num.trim()}` : '';
+    setFormData(prev => ({ ...prev, phone: combined }));
   };
 
   const handleAddSkill = (e) => {
@@ -86,9 +111,14 @@ export default function MyProfilePage() {
     e.preventDefault();
     try {
       setSaving(true);
+      const finalPhone = phoneNumber.trim() ? `${selectedCountryCode} ${phoneNumber.trim()}` : '';
+      const payload = {
+        ...formData,
+        phone: finalPhone
+      };
       // Immediately cache to localStorage so it is never lost on refresh
-      localStorage.setItem('candidate_profile_cache', JSON.stringify(formData));
-      await CandidateAPI.updateProfile(formData);
+      localStorage.setItem('candidate_profile_cache', JSON.stringify(payload));
+      await CandidateAPI.updateProfile(payload);
       setSuccessMsg('Profile and skills saved successfully!');
       setTimeout(() => setSuccessMsg(''), 3000);
       await loadProfile();
@@ -161,14 +191,43 @@ export default function MyProfilePage() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Phone Number</label>
-              <input 
-                type="text" 
-                className="form-input" 
-                value={formData.phone} 
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })} 
-                placeholder="+91 9876543210"
-              />
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Phone size={14} color="#64748b" /> Phone Number
+              </label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
+                <select
+                  className="form-input"
+                  value={selectedCountryCode}
+                  onChange={handleCountryCodeChange}
+                  aria-label="Country Dialing Code"
+                  style={{
+                    flex: '0 0 160px',
+                    cursor: 'pointer',
+                    fontWeight: '600',
+                    backgroundColor: '#fff',
+                    padding: '8px 10px',
+                    fontSize: '13px',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  {COUNTRY_CODES.map((c, idx) => {
+                    const dial = c.dialCode || c.code;
+                    return (
+                      <option key={`${dial}-${c.name}-${idx}`} value={dial}>
+                        {c.flag} {dial} ({c.name})
+                      </option>
+                    );
+                  })}
+                </select>
+                <input 
+                  type="tel" 
+                  className="form-input" 
+                  style={{ flex: 1 }}
+                  value={phoneNumber} 
+                  onChange={handlePhoneNumberChange} 
+                  placeholder="98765 43210"
+                />
+              </div>
             </div>
             <div className="form-group">
               <label className="form-label">Location (City)</label>

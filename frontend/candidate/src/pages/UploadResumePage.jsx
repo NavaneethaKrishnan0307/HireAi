@@ -20,6 +20,7 @@ import {
   Sparkles
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
+import { COUNTRY_CODES, parsePhoneNumber } from '../constants/countryCodes';
 
 export default function UploadResumePage() {
   const getCachedProfile = () => {
@@ -32,6 +33,8 @@ export default function UploadResumePage() {
   };
 
   const cachedData = getCachedProfile();
+  const initialPhoneParsed = parsePhoneNumber(cachedData?.phone);
+
   const [profile, setProfile] = useState(cachedData);
   const [loading, setLoading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(null);
@@ -42,6 +45,8 @@ export default function UploadResumePage() {
   // Candidate Details State (Instant LocalStorage Hydration + Auto-fetched & Editable)
   const [candidateName, setCandidateName] = useState(cachedData?.full_name || '');
   const [candidateEmail, setCandidateEmail] = useState(cachedData?.email || '');
+  const [selectedCountryCode, setSelectedCountryCode] = useState(initialPhoneParsed.dialCode);
+  const [candidatePhoneNum, setCandidatePhoneNum] = useState(initialPhoneParsed.number);
   const [candidatePhone, setCandidatePhone] = useState(cachedData?.phone || '');
   const [candidateTitle, setCandidateTitle] = useState(cachedData?.current_title || '');
   const [savingDetails, setSavingDetails] = useState(false);
@@ -59,7 +64,12 @@ export default function UploadResumePage() {
         localStorage.setItem('candidate_profile_cache', JSON.stringify(p));
         if (p.full_name) setCandidateName(p.full_name);
         if (p.email) setCandidateEmail(p.email);
-        if (p.phone) setCandidatePhone(p.phone);
+        if (p.phone) {
+          setCandidatePhone(p.phone);
+          const parsed = parsePhoneNumber(p.phone);
+          setSelectedCountryCode(parsed.dialCode);
+          setCandidatePhoneNum(parsed.number);
+        }
         if (p.current_title) setCandidateTitle(p.current_title);
       }
     } catch (err) {
@@ -67,15 +77,30 @@ export default function UploadResumePage() {
     }
   };
 
+  const handleCountryCodeChange = (e) => {
+    const code = e.target.value;
+    setSelectedCountryCode(code);
+    const combined = candidatePhoneNum.trim() ? `${code} ${candidatePhoneNum.trim()}` : '';
+    setCandidatePhone(combined);
+  };
+
+  const handlePhoneNumChange = (e) => {
+    const num = e.target.value;
+    setCandidatePhoneNum(num);
+    const combined = num.trim() ? `${selectedCountryCode} ${num.trim()}` : '';
+    setCandidatePhone(combined);
+  };
+
   const handleUpdateDetails = async (e) => {
     e?.preventDefault();
     try {
       setSavingDetails(true);
       setError(null);
+      const finalPhone = candidatePhoneNum.trim() ? `${selectedCountryCode} ${candidatePhoneNum.trim()}` : '';
       const updatePayload = {
         full_name: candidateName,
         email: candidateEmail,
-        phone: candidatePhone,
+        phone: finalPhone,
         current_title: candidateTitle
       };
 
@@ -223,13 +248,40 @@ export default function UploadResumePage() {
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '12px' }}>Phone Number</label>
-            <input 
-              type="text" 
-              className="form-input" 
-              value={candidatePhone} 
-              onChange={(e) => setCandidatePhone(e.target.value)} 
-              placeholder="+91 9876543210" 
-            />
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <select
+                className="form-input"
+                value={selectedCountryCode}
+                onChange={handleCountryCodeChange}
+                aria-label="Country Dial Code"
+                style={{
+                  flex: '0 0 140px',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  backgroundColor: '#fff',
+                  padding: '8px',
+                  fontSize: '12px',
+                  textOverflow: 'ellipsis'
+                }}
+              >
+                {COUNTRY_CODES.map((c, idx) => {
+                  const dial = c.dialCode || c.code;
+                  return (
+                    <option key={`${dial}-${c.name}-${idx}`} value={dial}>
+                      {c.flag} {dial} ({c.name})
+                    </option>
+                  );
+                })}
+              </select>
+              <input 
+                type="tel" 
+                className="form-input" 
+                style={{ flex: 1 }}
+                value={candidatePhoneNum} 
+                onChange={handlePhoneNumChange} 
+                placeholder="98765 43210" 
+              />
+            </div>
           </div>
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '12px' }}>Target Role / Title</label>
