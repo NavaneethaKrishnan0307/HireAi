@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
 import { COUNTRY_CODES, parsePhoneNumber } from '../constants/countryCodes';
+import CustomSearchableDropdown from '../components/CustomSearchableDropdown';
 
 export default function UploadResumePage() {
   const getCachedProfile = () => {
@@ -77,8 +78,18 @@ export default function UploadResumePage() {
     }
   };
 
-  const handleCountryCodeChange = (e) => {
-    const code = e.target.value;
+  const countryCodeOptions = COUNTRY_CODES.map((c, idx) => {
+    const dial = c.dialCode || c.code;
+    return {
+      value: dial,
+      label: `${dial} ${c.name}`,
+      flag: c.flag,
+      sublabel: dial
+    };
+  });
+
+  const handleCountryCodeChange = (val) => {
+    const code = typeof val === 'object' ? val.target.value : val;
     setSelectedCountryCode(code);
     const combined = candidatePhoneNum.trim() ? `${code} ${candidatePhoneNum.trim()}` : '';
     setCandidatePhone(combined);
@@ -249,30 +260,16 @@ export default function UploadResumePage() {
           <div className="form-group" style={{ marginBottom: 0 }}>
             <label className="form-label" style={{ fontSize: '12px' }}>Phone Number</label>
             <div style={{ display: 'flex', gap: '6px' }}>
-              <select
-                className="form-input"
-                value={selectedCountryCode}
-                onChange={handleCountryCodeChange}
-                aria-label="Country Dial Code"
-                style={{
-                  flex: '0 0 140px',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                  backgroundColor: '#fff',
-                  padding: '8px',
-                  fontSize: '12px',
-                  textOverflow: 'ellipsis'
-                }}
-              >
-                {COUNTRY_CODES.map((c, idx) => {
-                  const dial = c.dialCode || c.code;
-                  return (
-                    <option key={`${dial}-${c.name}-${idx}`} value={dial}>
-                      {c.flag} {dial} ({c.name})
-                    </option>
-                  );
-                })}
-              </select>
+              <div style={{ flex: '0 0 145px' }}>
+                <CustomSearchableDropdown
+                  value={selectedCountryCode}
+                  onChange={handleCountryCodeChange}
+                  options={countryCodeOptions}
+                  placeholder="Code"
+                  searchPlaceholder="Search..."
+                  dropdownWidth="240px"
+                />
+              </div>
               <input 
                 type="tel" 
                 className="form-input" 

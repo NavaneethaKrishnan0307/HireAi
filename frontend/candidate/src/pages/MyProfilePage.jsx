@@ -4,6 +4,7 @@ import { User, Mail, Phone, MapPin, Briefcase, GraduationCap, Code, CheckCircle,
 import { Link } from 'react-router-dom';
 import { COUNTRY_CODES, parsePhoneNumber } from '../constants/countryCodes';
 import { COUNTRIES_AND_CITIES, parseLocation } from '../constants/countriesAndCities';
+import CustomSearchableDropdown from '../components/CustomSearchableDropdown';
 
 export default function MyProfilePage() {
   const getCachedProfile = () => {
@@ -37,6 +38,36 @@ export default function MyProfilePage() {
 
   const currentCountryObj = COUNTRIES_AND_CITIES.find(c => c.country === selectedCountry) || COUNTRIES_AND_CITIES[0];
   const availableCities = currentCountryObj?.cities || [];
+
+  // Dropdown options formatted for CustomSearchableDropdown
+  const countryCodeOptions = COUNTRY_CODES.map((c, idx) => {
+    const dial = c.dialCode || c.code;
+    return {
+      value: dial,
+      label: `${dial} ${c.name}`,
+      flag: c.flag,
+      sublabel: dial
+    };
+  });
+
+  const countryOptions = COUNTRIES_AND_CITIES.map((c) => ({
+    value: c.country,
+    label: c.country,
+    flag: c.flag
+  }));
+
+  const cityOptions = [
+    ...availableCities.map((city) => ({
+      value: city,
+      label: city,
+      flag: '📍'
+    })),
+    {
+      value: 'Other',
+      label: '✨ Other / Custom City...',
+      flag: '✨'
+    }
+  ];
 
   const [formData, setFormData] = useState({
     full_name: cachedData?.full_name || '',
@@ -95,8 +126,8 @@ export default function MyProfilePage() {
     }
   };
 
-  const handleCountryCodeChange = (e) => {
-    const code = e.target.value;
+  const handleCountryCodeChange = (val) => {
+    const code = typeof val === 'object' ? val.target.value : val;
     setSelectedCountryCode(code);
     const combined = phoneNumber.trim() ? `${code} ${phoneNumber.trim()}` : '';
     setFormData(prev => ({ ...prev, phone: combined }));
@@ -109,8 +140,8 @@ export default function MyProfilePage() {
     setFormData(prev => ({ ...prev, phone: combined }));
   };
 
-  const handleCountryChange = (e) => {
-    const newCountry = e.target.value;
+  const handleCountryChange = (val) => {
+    const newCountry = typeof val === 'object' ? val.target.value : val;
     setSelectedCountry(newCountry);
     const cObj = COUNTRIES_AND_CITIES.find(c => c.country === newCountry);
     const firstCity = cObj?.cities[0] || 'Remote';
@@ -121,8 +152,8 @@ export default function MyProfilePage() {
     setFormData(prev => ({ ...prev, location: locStr }));
   };
 
-  const handleCityChange = (e) => {
-    const newCity = e.target.value;
+  const handleCityChange = (val) => {
+    const newCity = typeof val === 'object' ? val.target.value : val;
     setSelectedCity(newCity);
     if (newCity === 'Other') {
       setIsCustomCity(true);
@@ -194,7 +225,7 @@ export default function MyProfilePage() {
   }
 
   return (
-    <div className="content-area">
+    <div className="content-area" style={{ paddingBottom: '140px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
         <div>
           <h2 className="page-title" style={{ margin: 0 }}>My Profile</h2>
@@ -261,30 +292,16 @@ export default function MyProfilePage() {
                 <Phone size={14} color="#64748b" /> Phone Number
               </label>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
-                <select
-                  className="form-input"
-                  value={selectedCountryCode}
-                  onChange={handleCountryCodeChange}
-                  aria-label="Country Dialing Code"
-                  style={{
-                    flex: '0 0 160px',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    backgroundColor: '#fff',
-                    padding: '8px 10px',
-                    fontSize: '13px',
-                    textOverflow: 'ellipsis'
-                  }}
-                >
-                  {COUNTRY_CODES.map((c, idx) => {
-                    const dial = c.dialCode || c.code;
-                    return (
-                      <option key={`${dial}-${c.name}-${idx}`} value={dial}>
-                        {c.flag} {dial} ({c.name})
-                      </option>
-                    );
-                  })}
-                </select>
+                <div style={{ flex: '0 0 170px' }}>
+                  <CustomSearchableDropdown
+                    value={selectedCountryCode}
+                    onChange={handleCountryCodeChange}
+                    options={countryCodeOptions}
+                    placeholder="Country Code"
+                    searchPlaceholder="Search code or country..."
+                    dropdownWidth="260px"
+                  />
+                </div>
                 <input 
                   type="tel" 
                   className="form-input" 
@@ -300,19 +317,13 @@ export default function MyProfilePage() {
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Globe size={14} color="#64748b" /> Country
               </label>
-              <select
-                className="form-input"
+              <CustomSearchableDropdown
                 value={selectedCountry}
                 onChange={handleCountryChange}
-                aria-label="Country Selection"
-                style={{ cursor: 'pointer', fontWeight: '500', backgroundColor: '#fff' }}
-              >
-                {COUNTRIES_AND_CITIES.map((item) => (
-                  <option key={item.country} value={item.country}>
-                    {item.flag} {item.country}
-                  </option>
-                ))}
-              </select>
+                options={countryOptions}
+                placeholder="Select Country"
+                searchPlaceholder="Search country..."
+              />
             </div>
 
             <div className="form-group" style={{ gridColumn: 'span 2' }}>
@@ -320,20 +331,15 @@ export default function MyProfilePage() {
                 <MapPin size={14} color="#64748b" /> City / Region (for {selectedCountry})
               </label>
               <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                <select
-                  className="form-input"
-                  value={selectedCity}
-                  onChange={handleCityChange}
-                  aria-label="City Selection"
-                  style={{ flex: '1 1 240px', cursor: 'pointer', fontWeight: '500', backgroundColor: '#fff' }}
-                >
-                  {availableCities.map((city) => (
-                    <option key={city} value={city}>
-                      📍 {city}
-                    </option>
-                  ))}
-                  <option value="Other">✨ Other / Custom City...</option>
-                </select>
+                <div style={{ flex: '1 1 260px' }}>
+                  <CustomSearchableDropdown
+                    value={selectedCity}
+                    onChange={handleCityChange}
+                    options={cityOptions}
+                    placeholder="Select City"
+                    searchPlaceholder="Search city in this country..."
+                  />
+                </div>
                 {isCustomCity && (
                   <input 
                     type="text" 
