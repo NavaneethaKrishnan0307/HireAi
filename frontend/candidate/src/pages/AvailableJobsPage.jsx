@@ -27,6 +27,8 @@ export default function AvailableJobsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [simulatingJob, setSimulatingJob] = useState(null);
   const [isProfileComplete, setIsProfileComplete] = useState(true);
+  const [hasResume, setHasResume] = useState(false);
+  const [hasSkills, setHasSkills] = useState(false);
 
   useEffect(() => {
     loadJobs();
@@ -39,12 +41,18 @@ export default function AvailableJobsPage() {
       setJobs(data);
       const appliedMap = {};
       let allComplete = true;
+      let resumeUploaded = false;
+      let skillsProvided = false;
       data.forEach(j => {
         if (j.has_applied) appliedMap[j.id] = true;
         if (j.is_profile_complete === false) allComplete = false;
+        if (j.has_resume) resumeUploaded = true;
+        if (j.has_skills) skillsProvided = true;
       });
       setAppliedJobs(appliedMap);
       setIsProfileComplete(allComplete);
+      setHasResume(resumeUploaded);
+      setHasSkills(skillsProvided);
     } catch (err) {
       console.error(err);
     } finally {
@@ -53,8 +61,15 @@ export default function AvailableJobsPage() {
   };
 
   const handleApply = async (jobId) => {
-    if (!isProfileComplete) {
-      alert('Application Blocked: Please upload your resume and complete your profile before applying for opportunities.');
+    const job = jobs.find(j => j.id === jobId);
+    if (job && job.is_profile_complete === false) {
+      if (!job.has_resume && !job.has_skills) {
+        alert('Application Blocked: Please upload your resume and complete your profile to proceed.');
+      } else if (!job.has_resume) {
+        alert('Application Blocked: Please upload your resume document to proceed.');
+      } else {
+        alert('Application Blocked: Please complete your profile skills and details to proceed.');
+      }
       return;
     }
     try {
@@ -118,15 +133,23 @@ export default function AvailableJobsPage() {
             <AlertTriangle size={24} color="#d97706" style={{ flexShrink: 0 }} />
             <div>
               <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#92400e' }}>
-                View-Only Mode: Profile Incomplete (0% Match Gated)
+                {!hasResume && !hasSkills
+                  ? 'View-Only Mode: Upload Resume & Complete Profile to Proceed'
+                  : !hasResume
+                  ? 'View-Only Mode: Upload Resume Document to Proceed'
+                  : 'View-Only Mode: Complete Profile Details to Proceed'}
               </h4>
               <p style={{ margin: '3px 0 0 0', fontSize: '13px', color: '#b45309', lineHeight: 1.4 }}>
-                You can browse all live corporate openings. To calculate your personalized AI match rating and unlock 1-click job applications, upload your resume and complete your profile.
+                {!hasResume && !hasSkills
+                  ? 'You can browse all live corporate openings. To calculate your personalized AI match rating and unlock applications, please upload your resume and complete your profile.'
+                  : !hasResume
+                  ? 'Your profile details are recorded. Please upload your verified resume document to unlock personalized ATS match scoring and job applications.'
+                  : 'Your resume has been uploaded. Please complete and verify your profile skills to calculate your exact fit score and unlock applications.'}
               </p>
             </div>
           </div>
           <Link 
-            to="/upload" 
+            to={!hasResume ? "/upload" : "/profile"} 
             className="choose-btn" 
             style={{ 
               margin: 0, 
@@ -141,7 +164,13 @@ export default function AvailableJobsPage() {
               whiteSpace: 'nowrap'
             }}
           >
-            <UploadCloud size={15} /> Upload Resume to Unlock Apply
+            {!hasResume && !hasSkills ? (
+              <><UploadCloud size={15} /> Upload Resume & Profile to Proceed</>
+            ) : !hasResume ? (
+              <><UploadCloud size={15} /> Upload Resume to Proceed</>
+            ) : (
+              <><FileText size={15} /> Complete Profile to Proceed</>
+            )}
           </Link>
         </div>
       )}
@@ -162,6 +191,14 @@ export default function AvailableJobsPage() {
             const scoreBg = !isComplete ? '#f1f5f9' : score >= 80 ? '#ecfdf5' : score >= 50 ? '#fffbeb' : '#f1f5f9';
             const gapAdvice = job.skill_gap_advice || [];
             const missingSkills = job.missing_skills || [];
+
+            const badgeLabel = isComplete
+              ? `${score}% Match`
+              : !job.has_resume && !job.has_skills
+              ? '0% Match (Resume & Profile Required)'
+              : !job.has_resume
+              ? '0% Match (Resume Required)'
+              : '0% Match (Profile Skills Required)';
 
             return (
               <div key={job.id} className="card" style={{ transition: 'box-shadow 0.2s', padding: '22px' }}>
@@ -188,7 +225,7 @@ export default function AvailableJobsPage() {
                     border: `1px solid ${scoreColor}33`
                   }}>
                     <Sparkles size={14} />
-                    <span>{isComplete ? `${score}% Match` : '0% Match (Profile Incomplete)'}</span>
+                    <span>{badgeLabel}</span>
                   </div>
                 </div>
 
@@ -239,7 +276,13 @@ export default function AvailableJobsPage() {
                   </div>
                   {!isComplete ? (
                     <p style={{ fontSize: '12px', color: '#78350f', margin: 0 }}>
-                      ⚠️ Profile Incomplete: Upload your resume in the <Link to="/upload" style={{ color: '#b45309', fontWeight: '700' }}>Resume Upload Portal</Link> to automatically extract your skills, calculate your exact fit score, and qualify for applications.
+                      {!job.has_resume && !job.has_skills ? (
+                        <>⚠️ <strong>Action Required:</strong> Upload your resume in the <Link to="/upload" style={{ color: '#b45309', fontWeight: '700' }}>Resume Upload Portal</Link> and complete your profile to unlock personalized fit scoring and job applications.</>
+                      ) : !job.has_resume ? (
+                        <>⚠️ <strong>Action Required:</strong> Please <Link to="/upload" style={{ color: '#b45309', fontWeight: '700' }}>Upload your resume</Link> to verify your technical qualifications and unlock job applications.</>
+                      ) : (
+                        <>⚠️ <strong>Action Required:</strong> Resume received. Please verify and save your skills in <Link to="/profile" style={{ color: '#b45309', fontWeight: '700' }}>My Profile</Link> to activate match analysis.</>
+                      )}
                     </p>
                   ) : gapAdvice.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -287,7 +330,7 @@ export default function AvailableJobsPage() {
                     </span>
                   ) : !isComplete ? (
                     <Link
-                      to="/upload"
+                      to={!job.has_resume ? "/upload" : "/profile"}
                       className="choose-btn"
                       style={{
                         margin: 0,
@@ -299,7 +342,12 @@ export default function AvailableJobsPage() {
                         gap: '6px'
                       }}
                     >
-                      <Lock size={14} /> Upload Resume to Apply
+                      <Lock size={14} /> 
+                      {!job.has_resume && !job.has_skills
+                        ? 'Upload Resume & Profile to Proceed'
+                        : !job.has_resume
+                        ? 'Upload Resume to Proceed'
+                        : 'Complete Profile to Proceed'}
                     </Link>
                   ) : (
                     <button 

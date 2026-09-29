@@ -191,14 +191,29 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
         try:
             cand_skills = json.loads(cand_skills)
         except Exception:
-            cand_skills = []
+            cand_skills = [s.strip() for s in cand_skills.split(",") if s.strip()]
+    if not cand_skills and cand_data.get("parsed_data"):
+        raw_pd = cand_data.get("parsed_data")
+        if isinstance(raw_pd, str):
+            try:
+                raw_pd = json.loads(raw_pd)
+            except Exception:
+                raw_pd = {}
+        if isinstance(raw_pd, dict):
+            cand_skills = raw_pd.get("skills", []) or []
+            if isinstance(cand_skills, str):
+                try:
+                    cand_skills = json.loads(cand_skills)
+                except Exception:
+                    cand_skills = [s.strip() for s in cand_skills.split(",") if s.strip()]
 
     has_resume = bool(
         cand_data.get("resume_filename") or 
         cand_data.get("resume_url") or 
         cand_data.get("resume_status") == "processed"
     )
-    is_profile_complete = bool(has_resume and cand_skills and len(cand_skills) > 0)
+    has_skills = bool(cand_skills and len(cand_skills) > 0)
+    is_profile_complete = bool(has_resume and has_skills)
 
     # Get applied job IDs
     cand_id = cand_data.get("id")
@@ -211,6 +226,8 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
     for job in jobs:
         j = dict(job)
         j["has_applied"] = j["id"] in applied_job_ids
+        j["has_resume"] = has_resume
+        j["has_skills"] = has_skills
         j["is_profile_complete"] = is_profile_complete
         j["can_apply"] = is_profile_complete and not j["has_applied"]
         
@@ -227,18 +244,34 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
             j["matched_skills"] = []
             req_skills = j.get("required_skills", []) or []
             j["missing_skills"] = req_skills
-            # Generate constructive advice for required skills
+            advice_rec = (
+                "Upload resume and complete profile to proceed."
+                if not has_resume and not has_skills
+                else "Upload your resume document to proceed."
+                if not has_resume
+                else "Complete profile skills to proceed."
+            )
             j["skill_gap_advice"] = [
                 {
                     "missing_skill": s,
                     "importance": "Critical",
-                    "recommendation": f"Upload your resume to verify qualification for '{s}'."
+                    "recommendation": advice_rec
                 } for s in req_skills[:3]
             ]
             j["match_details"] = {
                 "overall_score": 0.0,
-                "domain_status": "Profile Incomplete",
-                "domain_warning": "Please upload your resume to unlock 1-click apply and calculate your match score.",
+                "domain_status": (
+                    "Resume & Profile Incomplete" if not has_resume and not has_skills
+                    else "Resume Required" if not has_resume
+                    else "Profile Incomplete"
+                ),
+                "domain_warning": (
+                    "Please upload your resume and complete your profile to proceed and unlock applications."
+                    if not has_resume and not has_skills
+                    else "Please upload your resume to proceed and unlock applications."
+                    if not has_resume
+                    else "Please complete your profile details to proceed and unlock applications."
+                ),
                 "matched_skills": [],
                 "missing_skills": req_skills
             }

@@ -88,17 +88,24 @@ class CandidateRanker:
         total_req = len(job_req_skills)
         matched_req_count = len(skill_res["matched_skills"])
 
-        # Check for unfilled / incomplete candidate profile
         has_resume = bool(
             candidate_data.get("resume_filename") or 
             candidate_data.get("resume_url") or 
-            candidate_data.get("resume_status") == "processed"
+            candidate_data.get("resume_status") == "processed" or
+            candidate_data.get("resume_bytes") or
+            candidate_data.get("parsed_skills")
         )
 
-        if not cand_skills and not has_resume:
+        if not has_resume and not cand_skills:
+            is_domain_mismatch = True
+            domain_status = "Resume & Profile Incomplete"
+            domain_warning = "Upload resume and complete profile details to calculate personalized match score."
+            overall_score = 0.0
+            skill_score = 0.0
+        elif not cand_skills:
             is_domain_mismatch = True
             domain_status = "Profile Incomplete"
-            domain_warning = "Profile is incomplete. Upload resume and specify technical skills to calculate personalized match score."
+            domain_warning = "Profile skills are incomplete. Please complete your profile details and skills to calculate your exact fit score."
             overall_score = 0.0
             skill_score = 0.0
         elif total_req > 0 and matched_req_count == 0:
