@@ -58,21 +58,56 @@ def update_profile(req: CandidateProfileUpdate, user: Dict[str, Any] = Depends(r
     if user_update:
         supabase.table("users").update(user_update).eq("id", user_id).execute()
 
-    # 2. Update candidate professional profile
+    # 2. Update candidate professional profile & synchronize parsed_data
     cand_fields = ["phone", "location", "current_title", "years_of_experience", "education", "parsed_skills"]
     cand_update = {k: getattr(req, k) for k in cand_fields if getattr(req, k) is not None}
     
+    import json
     cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
     if cand_res.data and len(cand_res.data) > 0:
-        if cand_update:
-            res = supabase.table("candidates").update(cand_update).eq("user_id", user_id).execute()
-            updated = res.data[0] if res.data else cand_res.data[0]
+        existing_cand = cand_res.data[0]
+        raw_parsed = existing_cand.get("parsed_data") or {}
+        if isinstance(raw_parsed, str):
+            try:
+                parsed_data = json.loads(raw_parsed)
+            except Exception:
+                parsed_data = {}
+        elif isinstance(raw_parsed, dict):
+            parsed_data = dict(raw_parsed)
         else:
-            updated = cand_res.data[0]
+            parsed_data = {}
+
+        if req.parsed_skills is not None:
+            parsed_data["skills"] = req.parsed_skills
+        if req.years_of_experience is not None:
+            parsed_data["years_of_experience"] = req.years_of_experience
+        if req.education is not None:
+            parsed_data["education"] = req.education
+        if req.current_title is not None:
+            parsed_data["current_title"] = req.current_title
+        if req.phone is not None:
+            parsed_data["phone"] = req.phone
+        if req.full_name is not None and req.full_name.strip():
+            parsed_data["name"] = req.full_name.strip()
+
+        cand_update["parsed_data"] = parsed_data
+        if cand_update.get("parsed_skills") and existing_cand.get("resume_status") == "unprocessed":
+            cand_update["resume_status"] = "processed"
+
+        res = supabase.table("candidates").update(cand_update).eq("user_id", user_id).execute()
+        updated = res.data[0] if res.data else cand_res.data[0]
     else:
         cand_update["user_id"] = user_id
-        cand_update.setdefault("resume_status", "unprocessed")
-        cand_update.setdefault("parsed_skills", [])
+        cand_update.setdefault("resume_status", "processed" if req.parsed_skills else "unprocessed")
+        cand_update.setdefault("parsed_skills", req.parsed_skills or [])
+        cand_update["parsed_data"] = {
+            "skills": req.parsed_skills or [],
+            "years_of_experience": req.years_of_experience or 0.0,
+            "education": req.education or "",
+            "current_title": req.current_title or "",
+            "phone": req.phone or "",
+            "name": req.full_name or user.get("full_name", "Candidate")
+        }
         res = supabase.table("candidates").insert(cand_update).execute()
         updated = res.data[0] if res.data else cand_update
 

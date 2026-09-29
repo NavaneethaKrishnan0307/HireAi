@@ -24,8 +24,18 @@ import {
 import { CandidateAPI } from '../services/api';
 
 export default function ResumeAnalyzerPage() {
-  const [report, setReport] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const getCachedReport = () => {
+    try {
+      const cached = localStorage.getItem('candidate_resume_report_cache');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const initialReport = getCachedReport();
+  const [report, setReport] = useState(initialReport);
+  const [loading, setLoading] = useState(!initialReport);
   const [error, setError] = useState(null);
   const [syncingName, setSyncingName] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState('');
@@ -36,12 +46,18 @@ export default function ResumeAnalyzerPage() {
 
   const loadReport = async () => {
     try {
-      setLoading(true);
+      if (!report) setLoading(true);
       setError(null);
       const data = await CandidateAPI.getResumeReport();
-      setReport(data);
+      if (data) {
+        setReport(data);
+        localStorage.setItem('candidate_resume_report_cache', JSON.stringify(data));
+      }
     } catch (err) {
-      setError(err.message || 'Failed to generate resume report');
+      console.warn('Could not refresh resume report from server:', err);
+      if (!report) {
+        setError(err.message || 'Failed to generate resume report');
+      }
     } finally {
       setLoading(false);
     }
@@ -73,7 +89,7 @@ export default function ResumeAnalyzerPage() {
     }
   };
 
-  if (loading) {
+  if (loading && !report) {
     return (
       <div className="content-area" style={{ textAlign: 'center', padding: '60px 20px' }}>
         <Sparkles size={40} color="#2563eb" style={{ animation: 'spin 2s linear infinite', margin: '0 auto 16px auto' }} />
@@ -83,7 +99,7 @@ export default function ResumeAnalyzerPage() {
     );
   }
 
-  if (error || !report) {
+  if ((error && !report) || (!report && !loading)) {
     return (
       <div className="content-area">
         <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
