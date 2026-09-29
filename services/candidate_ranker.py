@@ -91,15 +91,42 @@ class CandidateRanker:
         has_resume = bool(
             candidate_data.get("resume_filename") or 
             candidate_data.get("resume_url") or 
-            candidate_data.get("resume_status") == "processed" or
             candidate_data.get("resume_bytes") or
-            candidate_data.get("parsed_skills")
+            candidate_data.get("has_resume") or
+            (cand_skills and len(cand_skills) > 0)
         )
+
+        # Check for identity consistency between candidate profile name and resume extracted name
+        raw_pd = candidate_data.get("parsed_data") or {}
+        if isinstance(raw_pd, str):
+            try:
+                raw_pd = json.loads(raw_pd)
+            except Exception:
+                raw_pd = {}
+        resume_name = raw_pd.get("name") or raw_pd.get("resume_name")
+        cand_name = candidate_data.get("full_name") or candidate_data.get("name")
+        
+        identity_mismatch = False
+        if resume_name and cand_name:
+            norm_res = re.sub(r'[^\w\s]', '', str(resume_name)).lower().strip()
+            norm_cand = re.sub(r'[^\w\s]', '', str(cand_name)).lower().strip()
+            res_tokens = set(norm_res.split())
+            cand_tokens = set(norm_cand.split())
+            placeholder_names = {"candidate", "candidate profile", "user", "resume", ""}
+            if norm_res not in placeholder_names and norm_cand not in placeholder_names and res_tokens and cand_tokens:
+                if not (res_tokens & cand_tokens):
+                    identity_mismatch = True
 
         if not has_resume and not cand_skills:
             is_domain_mismatch = True
             domain_status = "Resume & Profile Incomplete"
             domain_warning = "Upload resume and complete profile details to calculate personalized match score."
+            overall_score = 0.0
+            skill_score = 0.0
+        elif identity_mismatch:
+            is_domain_mismatch = True
+            domain_status = "Identity Mismatch"
+            domain_warning = f"Identity Mismatch Detected: Uploaded resume belongs to '{resume_name}', but active candidate profile is '{cand_name}'. Profile and resume must belong to the same candidate."
             overall_score = 0.0
             skill_score = 0.0
         elif not cand_skills:
@@ -486,7 +513,7 @@ class CandidateRanker:
 
         # Pillar 5: Authenticity & Identity Integrity (0-100)
         if not is_valid_doc:
-            p_auth = 15
+            p_auth = 10
         elif name_mismatch:
             p_auth = 25  # Severe penalty: document belongs to someone else
         else:
@@ -502,7 +529,7 @@ class CandidateRanker:
         }
 
         if not is_valid_doc:
-            ats_score = min(25, doc_validation.get("authenticity_score", 20) if isinstance(doc_validation, dict) else 20)
+            ats_score = min(20, doc_validation.get("authenticity_score", 15) if isinstance(doc_validation, dict) else 15)
         elif name_mismatch:
             raw_score = int(
                 (p_format * 0.20) +
@@ -511,8 +538,8 @@ class CandidateRanker:
                 (p_readability * 0.15) +
                 (p_auth * 0.20)
             )
-            # Cap at 45% because identity mismatch is an immediate red-flag for ATS systems
-            ats_score = min(45, max(20, raw_score - 30))
+            # Immediate red-flag for ATS systems when identity differs
+            ats_score = min(25, max(0, raw_score - 45))
         else:
             ats_score = int(
                 (p_format * 0.20) +
