@@ -88,18 +88,33 @@ class CandidateRanker:
         total_req = len(job_req_skills)
         matched_req_count = len(skill_res["matched_skills"])
 
-        if total_req >= 2 and matched_req_count == 0:
+        # Check for unfilled / incomplete candidate profile
+        has_resume = bool(
+            candidate_data.get("resume_filename") or 
+            candidate_data.get("resume_url") or 
+            candidate_data.get("resume_status") == "processed"
+        )
+
+        if not cand_skills and not has_resume:
+            is_domain_mismatch = True
+            domain_status = "Profile Incomplete"
+            domain_warning = "Profile is incomplete. Upload resume and specify technical skills to calculate personalized match score."
+            overall_score = 0.0
+            skill_score = 0.0
+        elif total_req > 0 and matched_req_count == 0:
             is_domain_mismatch = True
             domain_status = "Critical Domain Mismatch"
             domain_warning = f"0 of {total_req} required technical skills matched (Candidate domain differs from role requirements)."
             raw_composite = (skill_score * weights["skills"]) + (exp_score * weights["experience"]) + (edu_score * weights["education"]) + (cert_score * weights["additional"])
-            overall_score = round(min(raw_composite * 0.15, 12.0), 1)
+            overall_score = round(min(raw_composite * 0.10, 8.0), 1)
         elif total_req >= 3 and matched_req_count == 1:
             is_domain_mismatch = True
             domain_status = "High Skill Gap"
             domain_warning = f"Only 1 of {total_req} required skills matched."
             raw_composite = (skill_score * weights["skills"]) + (exp_score * weights["experience"]) + (edu_score * weights["education"]) + (cert_score * weights["additional"])
-            overall_score = round(min(raw_composite * 0.45, 30.0), 1)
+            overall_score = round(min(raw_composite * 0.35, 25.0), 1)
+        elif total_req == 0 and not cand_skills:
+            overall_score = 0.0
         else:
             overall_score = round(
                 (skill_score * weights["skills"]) +

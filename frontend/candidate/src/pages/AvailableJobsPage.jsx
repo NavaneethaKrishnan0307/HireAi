@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { CandidateAPI } from '../services/api';
-import { MapPin, Briefcase, IndianRupee, Sparkles, CheckCircle2, Search, Lightbulb, ArrowUpRight, Zap, Target } from 'lucide-react';
+import { 
+  MapPin, 
+  Briefcase, 
+  IndianRupee, 
+  Sparkles, 
+  CheckCircle2, 
+  Search, 
+  Lightbulb, 
+  ArrowUpRight, 
+  Zap, 
+  Target,
+  AlertTriangle,
+  UploadCloud,
+  Lock,
+  FileText
+} from 'lucide-react';
 import JobSimulatorModal from '../components/JobSimulatorModal';
 
 export default function AvailableJobsPage() {
@@ -10,6 +26,7 @@ export default function AvailableJobsPage() {
   const [appliedJobs, setAppliedJobs] = useState({});
   const [searchTerm, setSearchTerm] = useState('');
   const [simulatingJob, setSimulatingJob] = useState(null);
+  const [isProfileComplete, setIsProfileComplete] = useState(true);
 
   useEffect(() => {
     loadJobs();
@@ -21,10 +38,13 @@ export default function AvailableJobsPage() {
       const data = await CandidateAPI.getJobs();
       setJobs(data);
       const appliedMap = {};
+      let allComplete = true;
       data.forEach(j => {
         if (j.has_applied) appliedMap[j.id] = true;
+        if (j.is_profile_complete === false) allComplete = false;
       });
       setAppliedJobs(appliedMap);
+      setIsProfileComplete(allComplete);
     } catch (err) {
       console.error(err);
     } finally {
@@ -33,6 +53,10 @@ export default function AvailableJobsPage() {
   };
 
   const handleApply = async (jobId) => {
+    if (!isProfileComplete) {
+      alert('Application Blocked: Please upload your resume and complete your profile before applying for opportunities.');
+      return;
+    }
     try {
       setApplyingId(jobId);
       await CandidateAPI.applyToJob(jobId);
@@ -53,10 +77,13 @@ export default function AvailableJobsPage() {
 
   return (
     <div className="content-area">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+      {/* Top Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h2 className="page-title">Available Opportunities</h2>
-          <p className="page-subtitle">Personalized AI match ratings tailored to your parsed resume profile.</p>
+          <h2 className="page-title" style={{ margin: 0 }}>Available Opportunities</h2>
+          <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
+            Live open positions across partner enterprises with explainable matching and gap analysis.
+          </p>
         </div>
 
         <div style={{ position: 'relative', width: '280px' }}>
@@ -72,8 +99,55 @@ export default function AvailableJobsPage() {
         </div>
       </div>
 
+      {/* Incomplete Profile / View-Only Mode Banner */}
+      {!loading && !isProfileComplete && (
+        <div style={{ 
+          backgroundColor: '#fffbeb', 
+          border: '1px solid #fde68a', 
+          borderRadius: '12px', 
+          padding: '16px 20px', 
+          marginBottom: '20px', 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'wrap', 
+          gap: '14px',
+          boxShadow: '0 2px 8px rgba(217, 119, 6, 0.08)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '280px' }}>
+            <AlertTriangle size={24} color="#d97706" style={{ flexShrink: 0 }} />
+            <div>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#92400e' }}>
+                View-Only Mode: Profile Incomplete (0% Match Gated)
+              </h4>
+              <p style={{ margin: '3px 0 0 0', fontSize: '13px', color: '#b45309', lineHeight: 1.4 }}>
+                You can browse all live corporate openings. To calculate your personalized AI match rating and unlock 1-click job applications, upload your resume and complete your profile.
+              </p>
+            </div>
+          </div>
+          <Link 
+            to="/upload" 
+            className="choose-btn" 
+            style={{ 
+              margin: 0, 
+              padding: '9px 18px', 
+              fontSize: '13px', 
+              fontWeight: '700',
+              backgroundColor: '#d97706', 
+              textDecoration: 'none', 
+              display: 'inline-flex', 
+              alignItems: 'center', 
+              gap: '6px',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <UploadCloud size={15} /> Upload Resume to Unlock Apply
+          </Link>
+        </div>
+      )}
+
       {loading ? (
-        <p>Loading matching job recommendations...</p>
+        <p style={{ color: '#64748b', fontSize: '14px' }}>Loading matching job opportunities...</p>
       ) : filteredJobs.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '40px' }}>
           <p style={{ color: '#64748b' }}>No matching job openings found.</p>
@@ -82,9 +156,10 @@ export default function AvailableJobsPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
           {filteredJobs.map(job => {
             const hasApplied = appliedJobs[job.id];
-            const score = job.match_score || 0;
-            const scoreColor = score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#64748b';
-            const scoreBg = score >= 80 ? '#ecfdf5' : score >= 50 ? '#fffbeb' : '#f1f5f9';
+            const isComplete = job.is_profile_complete !== false;
+            const score = isComplete ? (job.match_score || 0) : 0;
+            const scoreColor = !isComplete ? '#64748b' : score >= 80 ? '#059669' : score >= 50 ? '#d97706' : '#64748b';
+            const scoreBg = !isComplete ? '#f1f5f9' : score >= 80 ? '#ecfdf5' : score >= 50 ? '#fffbeb' : '#f1f5f9';
             const gapAdvice = job.skill_gap_advice || [];
             const missingSkills = job.missing_skills || [];
 
@@ -113,7 +188,7 @@ export default function AvailableJobsPage() {
                     border: `1px solid ${scoreColor}33`
                   }}>
                     <Sparkles size={14} />
-                    <span>{score}% Match</span>
+                    <span>{isComplete ? `${score}% Match` : '0% Match (Profile Incomplete)'}</span>
                   </div>
                 </div>
 
@@ -133,7 +208,7 @@ export default function AvailableJobsPage() {
                   <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '600' }}>Required Skills:</span>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
                     {job.required_skills?.map(s => {
-                      const isMatched = (job.matched_skills || []).includes(s);
+                      const isMatched = isComplete && (job.matched_skills || []).includes(s);
                       return (
                         <span 
                           key={s} 
@@ -162,7 +237,11 @@ export default function AvailableJobsPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#b45309', fontWeight: '800', fontSize: '13px', marginBottom: '6px' }}>
                     <Lightbulb size={16} /> Skill Gap Advisor & Recommendations
                   </div>
-                  {gapAdvice.length > 0 ? (
+                  {!isComplete ? (
+                    <p style={{ fontSize: '12px', color: '#78350f', margin: 0 }}>
+                      ⚠️ Profile Incomplete: Upload your resume in the <Link to="/upload" style={{ color: '#b45309', fontWeight: '700' }}>Resume Upload Portal</Link> to automatically extract your skills, calculate your exact fit score, and qualify for applications.
+                    </p>
+                  ) : gapAdvice.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       {gapAdvice.slice(0, 2).map((item, idx) => (
                         <p key={idx} style={{ fontSize: '12px', color: '#78350f', margin: 0, display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -206,6 +285,22 @@ export default function AvailableJobsPage() {
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#059669', fontWeight: '700', fontSize: '13px', padding: '8px 16px', background: '#ecfdf5', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
                       <CheckCircle2 size={16} /> Application Submitted
                     </span>
+                  ) : !isComplete ? (
+                    <Link
+                      to="/upload"
+                      className="choose-btn"
+                      style={{
+                        margin: 0,
+                        padding: '10px 20px',
+                        textDecoration: 'none',
+                        backgroundColor: '#475569',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <Lock size={14} /> Upload Resume to Apply
+                    </Link>
                   ) : (
                     <button 
                       className="choose-btn" 

@@ -185,6 +185,21 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
     cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
     cand_data = cand_res.data[0] if cand_res.data else {}
 
+    import json
+    cand_skills = cand_data.get("parsed_skills", []) or []
+    if isinstance(cand_skills, str):
+        try:
+            cand_skills = json.loads(cand_skills)
+        except Exception:
+            cand_skills = []
+
+    has_resume = bool(
+        cand_data.get("resume_filename") or 
+        cand_data.get("resume_url") or 
+        cand_data.get("resume_status") == "processed"
+    )
+    is_profile_complete = bool(has_resume and cand_skills and len(cand_skills) > 0)
+
     # Get applied job IDs
     cand_id = cand_data.get("id")
     applied_job_ids = set()
@@ -196,9 +211,11 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
     for job in jobs:
         j = dict(job)
         j["has_applied"] = j["id"] in applied_job_ids
+        j["is_profile_complete"] = is_profile_complete
+        j["can_apply"] = is_profile_complete and not j["has_applied"]
         
         # Calculate matching score and explainable gap advice
-        if cand_data.get("parsed_skills") and len(cand_data.get("parsed_skills", [])) > 0:
+        if is_profile_complete:
             match_res = CandidateRanker.calculate_candidate_match(cand_data, j)
             j["match_score"] = match_res["overall_score"]
             j["matched_skills"] = match_res["matched_skills"]
@@ -208,19 +225,28 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
         else:
             j["match_score"] = 0
             j["matched_skills"] = []
-            req_skills = j.get("required_skills", [])
+            req_skills = j.get("required_skills", []) or []
             j["missing_skills"] = req_skills
             # Generate constructive advice for required skills
-            j["skill_gap_advice"] = CandidateRanker.generate_skill_gap_advice(
-                missing_skills=req_skills,
-                total_req_skills=len(req_skills),
-                skill_weight=0.50
-            )
+            j["skill_gap_advice"] = [
+                {
+                    "missing_skill": s,
+                    "importance": "Critical",
+                    "recommendation": f"Upload your resume to verify qualification for '{s}'."
+                } for s in req_skills[:3]
+            ]
+            j["match_details"] = {
+                "overall_score": 0.0,
+                "domain_status": "Profile Incomplete",
+                "domain_warning": "Please upload your resume to unlock 1-click apply and calculate your match score.",
+                "matched_skills": [],
+                "missing_skills": req_skills
+            }
 
         results.append(j)
 
-    # Sort by match score descending
-    results.sort(key=lambda x: x.get("match_score", 0), reverse=True)
+    # Sort by match score descending, then by title
+    results.sort(key=lambda x: (x.get("match_score", 0), str(x.get("title", ""))), reverse=True)
     return results
 
 
@@ -237,17 +263,33 @@ def get_job_detail(job_id: str, user: Dict[str, Any] = Depends(require_candidate
     cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
     cand_data = cand_res.data[0] if cand_res.data else {}
 
+    has_resume = bool(
+        cand_data.get("resume_filename") or 
+        cand_data.get("resume_url") or 
+        cand_data.get("resume_status") == "processed"
+    )
+    cand_skills = cand_data.get("parsed_skills", []) or []
+    is_profile_complete = bool(has_resume and cand_skills)
+
     cand_id = cand_data.get("id")
     has_applied = False
     if cand_id:
         app_res = supabase.table("applications").select("*").eq("job_id", job_id).eq("candidate_id", cand_id).execute()
         has_applied = bool(app_res.data)
 
-    match_details = CandidateRanker.calculate_candidate_match(cand_data, job) if cand_data else None
+    match_details = CandidateRanker.calculate_candidate_match(cand_data, job) if is_profile_complete else {
+        "overall_score": 0.0,
+        "domain_status": "Profile Incomplete",
+        "domain_warning": "Upload resume to calculate match score.",
+        "matched_skills": [],
+        "missing_skills": job.get("required_skills", []) or []
+    }
 
     return {
         "job": job,
         "has_applied": has_applied,
+        "is_profile_complete": is_profile_complete,
+        "can_apply": is_profile_complete and not has_applied,
         "match_details": match_details
     }
 
@@ -263,6 +305,26 @@ def apply_to_job(req: ApplicationCreate, user: Dict[str, Any] = Depends(require_
     
     candidate = cand_res.data[0]
     candidate_id = candidate["id"]
+
+    # Block application if resume is not uploaded or profile is unfilled
+    import json
+    cand_skills = candidate.get("parsed_skills", []) or []
+    if isinstance(cand_skills, str):
+        try:
+            cand_skills = json.loads(cand_skills)
+        except Exception:
+            cand_skills = []
+    
+    has_resume = bool(
+        candidate.get("resume_filename") or 
+        candidate.get("resume_url") or 
+        candidate.get("resume_status") == "processed"
+    )
+    if not has_resume or not cand_skills:
+        raise HTTPException(
+            status_code=400,
+            detail="Application Blocked: You must upload your resume and complete your profile before applying for opportunities."
+        )
 
     # Check if job exists
     job_res = supabase.table("jobs").select("*").eq("id", req.job_id).execute()
