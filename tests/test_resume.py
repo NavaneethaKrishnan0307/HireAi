@@ -144,6 +144,30 @@ def test_resume_authenticity_and_identity_mismatch():
     assert auth_check["identity_status"] == "DISCREPANCY_DETECTED"
     assert "Surves" in auth_check["identity_discrepancy"]
     assert "Joe" in auth_check["identity_discrepancy"]
+    assert audit_report["ats_pillars"]["authenticity_integrity"] == 25
+    assert audit_report["ats_health_score"] <= 45
+
+    # Test 4: Registered Profile is "Ram" and Resume uploaded belongs to "Surves"
+    ram_report = CandidateRanker.generate_resume_audit_report({
+        "full_name": "Ram",
+        "email": "ram@example.com",
+        "phone": "9887766554",
+        "parsed_skills": ["Python", "FastAPI", "PostgreSQL"],
+        "years_of_experience": 2.0,
+        "education": "B.Tech in Computer Science",
+        "raw_text": surves_resume,
+        "parsed_data": {
+            "resume_name": "Surves",
+            "name": "Surves",
+            "skills": ["Python", "FastAPI", "PostgreSQL"]
+        }
+    }, jobs_list=[])
+
+    assert ram_report["authenticity_verification"]["name_mismatch"] is True
+    assert ram_report["ats_pillars"]["authenticity_integrity"] == 25
+    assert ram_report["ats_health_score"] <= 45
+    assert "Surves" in ram_report["authenticity_verification"]["identity_discrepancy"]
+    assert "Ram" in ram_report["authenticity_verification"]["identity_discrepancy"]
 
 def test_strict_domain_misalignment_penalty():
     from backend.services.candidate_ranker import CandidateRanker

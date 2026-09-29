@@ -406,8 +406,19 @@ class CandidateRanker:
                     synth_lines.append(f"Delivered {experience} years of hands-on technical solutions meeting enterprise milestones.")
                 line_analysis = ResumeParser.analyze_resume_lines("\n".join(synth_lines))
 
-        word_count = doc_validation.get("word_count") if isinstance(doc_validation, dict) else (len(raw_text.split()) if raw_text else 220)
-        detected_sections = doc_validation.get("detected_sections", ["Skills", "Experience", "Education"]) if isinstance(doc_validation, dict) else ["Skills", "Experience", "Education"]
+        if isinstance(doc_validation, dict) and doc_validation.get("word_count"):
+            try:
+                word_count = int(doc_validation.get("word_count"))
+            except (ValueError, TypeError):
+                word_count = len(raw_text.split()) if raw_text else 220
+        elif raw_text:
+            word_count = len(raw_text.split())
+        else:
+            word_count = max(180, len(skills) * 30 + 100)
+
+        detected_sections = doc_validation.get("detected_sections") if isinstance(doc_validation, dict) else ["Skills", "Experience", "Education"]
+        if not detected_sections:
+            detected_sections = ["Skills", "Experience", "Education"]
 
         # Pillar 1: Format & Parsability (0-100)
         p_format = 30 + (len(detected_sections) * 15)
@@ -452,12 +463,13 @@ class CandidateRanker:
             p_readability = 50
 
         # Pillar 5: Authenticity & Identity Integrity (0-100)
-        p_auth = doc_validation.get("authenticity_score", 85) if isinstance(doc_validation, dict) else 85
-        if name_mismatch:
-            p_auth = max(25, p_auth - 25)
         if not is_valid_doc:
-            p_auth = min(25, p_auth)
-        p_auth = min(100, max(20, p_auth))
+            p_auth = 15
+        elif name_mismatch:
+            p_auth = 25  # Severe penalty: document belongs to someone else
+        else:
+            raw_auth = doc_validation.get("authenticity_score") if isinstance(doc_validation, dict) else 90
+            p_auth = min(100, max(45, int(raw_auth) if raw_auth is not None else 90))
 
         ats_pillars = {
             "format_parsability": p_format,
@@ -469,6 +481,16 @@ class CandidateRanker:
 
         if not is_valid_doc:
             ats_score = min(25, doc_validation.get("authenticity_score", 20) if isinstance(doc_validation, dict) else 20)
+        elif name_mismatch:
+            raw_score = int(
+                (p_format * 0.20) +
+                (p_keywords * 0.25) +
+                (p_impact * 0.20) +
+                (p_readability * 0.15) +
+                (p_auth * 0.20)
+            )
+            # Cap at 45% because identity mismatch is an immediate red-flag for ATS systems
+            ats_score = min(45, max(20, raw_score - 30))
         else:
             ats_score = int(
                 (p_format * 0.20) +

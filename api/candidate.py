@@ -88,7 +88,7 @@ def update_profile(req: CandidateProfileUpdate, user: Dict[str, Any] = Depends(r
         if req.phone is not None:
             parsed_data["phone"] = req.phone
         if req.full_name is not None and req.full_name.strip():
-            parsed_data["name"] = req.full_name.strip()
+            parsed_data["profile_name"] = req.full_name.strip()
 
         cand_update["parsed_data"] = parsed_data
         if cand_update.get("parsed_skills") and existing_cand.get("resume_status") == "unprocessed":
@@ -106,7 +106,7 @@ def update_profile(req: CandidateProfileUpdate, user: Dict[str, Any] = Depends(r
             "education": req.education or "",
             "current_title": req.current_title or "",
             "phone": req.phone or "",
-            "name": req.full_name or user.get("full_name", "Candidate")
+            "profile_name": req.full_name or user.get("full_name", "Candidate")
         }
         res = supabase.table("candidates").insert(cand_update).execute()
         updated = res.data[0] if res.data else cand_update
@@ -132,6 +132,8 @@ def upload_resume(file: UploadFile = File(...), user: Dict[str, Any] = Depends(r
 
     # 2. In-Memory Deterministic Rule-Based Parsing (0 local files created)
     parsed_info = ResumeParser.parse_bytes(file_bytes, filename=original_name)
+    extracted_name = parsed_info.get("name") or "Candidate Profile"
+    parsed_info["resume_name"] = extracted_name
 
     # 3. Update or create candidate database record with cloud storage pointer
     update_payload = {
