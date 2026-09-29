@@ -104,15 +104,25 @@ export default function UploadResumePage() {
 
   const handleUpdateDetails = async (e) => {
     e?.preventDefault();
+    if (!candidateName.trim() || !candidateEmail.trim() || !candidatePhoneNum.trim() || !candidateTitle.trim()) {
+      setError('Compulsory details missing: Full Name, Email, Phone Number, and Job Title are all strictly required.');
+      return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(candidateEmail.trim())) {
+      setError('Please provide a valid email address.');
+      return;
+    }
+
     try {
       setSavingDetails(true);
       setError(null);
       const finalPhone = candidatePhoneNum.trim() ? `${selectedCountryCode} ${candidatePhoneNum.trim()}` : '';
       const updatePayload = {
-        full_name: candidateName,
-        email: candidateEmail,
+        full_name: candidateName.trim(),
+        email: candidateEmail.trim().toLowerCase(),
         phone: finalPhone,
-        current_title: candidateTitle
+        current_title: candidateTitle.trim()
       };
 
       // Instantly cache in localStorage so refresh never wipes typed inputs

@@ -48,6 +48,29 @@ def update_profile(req: CandidateProfileUpdate, user: Dict[str, Any] = Depends(r
     supabase = get_supabase()
     user_id = user["sub"]
     
+    # Validate compulsory fields
+    missing = []
+    if req.full_name is not None and not req.full_name.strip():
+        missing.append("Full Name")
+    if req.email is not None and (not req.email.strip() or "@" not in req.email):
+        missing.append("Valid Email")
+    if req.phone is not None and not req.phone.strip():
+        missing.append("Phone Number")
+    if req.location is not None and not req.location.strip():
+        missing.append("Location")
+    if req.current_title is not None and not req.current_title.strip():
+        missing.append("Current Job Title")
+    if req.education is not None and not req.education.strip():
+        missing.append("Education")
+    if req.parsed_skills is not None and len(req.parsed_skills) == 0:
+        missing.append("Technical Skills (at least 1 required)")
+    
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Compulsory profile information missing: {', '.join(missing)}."
+        )
+
     # 1. Update user account details (full_name, email) if provided
     user_update = {}
     if req.full_name is not None and req.full_name.strip():
