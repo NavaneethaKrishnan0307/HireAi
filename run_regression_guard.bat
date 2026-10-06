@@ -1,5 +1,6 @@
 @echo off
-title HireAI - Continuous Integrity & Regression Prevention Guard
+cd /d "%~dp0"
+title "HireAI - Continuous Integrity and Regression Prevention Guard"
 echo ============================================================================
 echo        Running HireAI Automated Regression Prevention Engine...
 echo ============================================================================

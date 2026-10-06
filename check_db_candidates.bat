@@ -1,5 +1,6 @@
 @echo off
-title HireAI - Database Registered Candidates
+cd /d "%~dp0"
+title "HireAI - Database Registered Candidates"
 python view_db_candidates.py
 echo.
 pause
