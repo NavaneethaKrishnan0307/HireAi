@@ -79,6 +79,14 @@
       "full_name": "Test Candidate User",
       "avatar_url": null,
       "id": "8d5f8975-e873-4edf-baa0-30960f1a75ce"
+    },
+    {
+      "email": "test_04a86dd7@example.com",
+      "password_hash": "dda69783f28fdf6f1c5a83e8400f2472e9300887d1dffffe12a07b92a3d0aa25",
+      "role": "candidate",
+      "full_name": "Test Candidate User",
+      "avatar_url": null,
+      "id": "5c431032-2307-4f5b-9258-29037dc45be3"
     }
   ],
   "hr_users": [
@@ -207,7 +215,9 @@
         "FastAPI",
         "React",
         "SQL"
-      ]
+      ],
+      "full_name": "Sam",
+      "email": "sam@example.com"
     },
     {
       "id": "8f53fa1e-997e-4959-bde1-f84b718296ba",
@@ -249,6 +259,17 @@
       "resume_status": "unprocessed",
       "parsed_skills": [],
       "id": "e739619d-ff0a-472e-a811-5a163d3524d0"
+    },
+    {
+      "user_id": "5c431032-2307-4f5b-9258-29037dc45be3",
+      "phone": "",
+      "location": "",
+      "current_title": "",
+      "years_of_experience": 0.0,
+      "education": "",
+      "resume_status": "unprocessed",
+      "parsed_skills": [],
+      "id": "a772fc4e-da69-45a1-b92e-8c8a51af212b"
     }
   ],
   "jobs": [
