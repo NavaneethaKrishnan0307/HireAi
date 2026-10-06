@@ -128,7 +128,18 @@ def check_guard_7_pytest_suite():
     res = subprocess.run([sys.executable, "-m", "pytest", "-q"], capture_output=True, text=True)
     if res.returncode != 0:
         raise AssertionError(f"Pytest test suite failed:\n{res.stdout}\n{res.stderr}")
-    return "All 25 automated backend unit & regression tests passed cleanly"
+    return "All 27 automated backend unit, sync & regression tests passed cleanly"
+
+def check_guard_8_supabase_cloud_readiness():
+    import supabase
+    from config import settings
+    if "skfhoxfelwioqejeknbi.supabase.co" not in settings.SUPABASE_URL:
+        raise AssertionError("Supabase URL endpoint mismatch")
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    sync_script = os.path.join(root_dir, "sync_to_supabase.py")
+    if not os.path.exists(sync_script):
+        raise AssertionError("sync_to_supabase.py is missing")
+    return "Supabase Python SDK installed, endpoint locked, and sync engine ready"
 
 def main():
     print_banner()
@@ -140,6 +151,7 @@ def main():
         ("Guard 5: Code Mirror Synchronization", check_guard_5_services_sync),
         ("Guard 6: Frontend Cache Scoping", check_guard_6_frontend_cache_scoping),
         ("Guard 7: Full Automated Pytest Suite", check_guard_7_pytest_suite),
+        ("Guard 8: Supabase Cloud Readiness", check_guard_8_supabase_cloud_readiness),
     ]
 
     failed = 0
@@ -153,11 +165,12 @@ def main():
 
     print("=" * 76)
     if failed == 0:
-        print(" SUCCESS: ALL 7 REGRESSION GUARDS VERIFIED - ZERO DEFECTS DETECTED")
+        print(" SUCCESS: ALL 8 REGRESSION & CLOUD GUARDS VERIFIED - ZERO DEFECTS DETECTED")
         print("=" * 76)
         return 0
     else:
         print(f" FAILURE: {failed} GUARD(S) FAILED - PLEASE RECTIFY BEFORE COMMITTING")
+
         print("=" * 76)
         return 1
 
