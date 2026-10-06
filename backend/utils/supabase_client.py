@@ -124,9 +124,13 @@ class MockSupabaseClient:
     def _save_to_disk(self):
         try:
             import json
+            import os
+            import tempfile
             self.db_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(self.db_file, "w", encoding="utf-8") as f:
+            tmp_fd, tmp_path = tempfile.mkstemp(dir=self.db_file.parent, prefix="db_tmp_", suffix=".json")
+            with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
                 json.dump(self.store, f, indent=2, default=str)
+            os.replace(tmp_path, self.db_file)
         except Exception as e:
             logger.warning("Could not persist mock database to disk: %s", e)
 

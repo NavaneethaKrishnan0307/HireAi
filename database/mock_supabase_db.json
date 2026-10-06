@@ -87,6 +87,14 @@
       "full_name": "Test Candidate User",
       "avatar_url": null,
       "id": "5c431032-2307-4f5b-9258-29037dc45be3"
+    },
+    {
+      "email": "test_31ef85bc@example.com",
+      "password_hash": "dda69783f28fdf6f1c5a83e8400f2472e9300887d1dffffe12a07b92a3d0aa25",
+      "role": "candidate",
+      "full_name": "Test Candidate User",
+      "avatar_url": null,
+      "id": "80cbae36-c09b-4184-bd83-d2e15c6ba206"
     }
   ],
   "hr_users": [
@@ -270,6 +278,17 @@
       "resume_status": "unprocessed",
       "parsed_skills": [],
       "id": "a772fc4e-da69-45a1-b92e-8c8a51af212b"
+    },
+    {
+      "user_id": "80cbae36-c09b-4184-bd83-d2e15c6ba206",
+      "phone": "",
+      "location": "",
+      "current_title": "",
+      "years_of_experience": 0.0,
+      "education": "",
+      "resume_status": "unprocessed",
+      "parsed_skills": [],
+      "id": "94b06403-fe58-4d3c-8c80-a4096ead4005"
     }
   ],
   "jobs": [
