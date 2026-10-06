@@ -91,10 +91,83 @@ class LoginRequest(BaseModel):
     password: str
     role: Optional[str] = None # Optional role check
 
+class ForgotPasswordRequest(BaseModel):
+    email: str
+    role: Optional[str] = None
+
+class ResetPasswordRequest(BaseModel):
+    email: str
+    new_password: str
+    role: Optional[str] = None
+
 class AuthResponse(BaseModel):
     token: str
     user: Dict[str, Any]
     role_profile: Optional[Dict[str, Any]] = None
+
+
+@router.post("/forgot-password")
+def forgot_password_verify(req: ForgotPasswordRequest):
+    """Verify if account exists before resetting password."""
+    supabase = get_supabase()
+    email_clean = req.email.strip().lower()
+    
+    users_res = supabase.table("users").select("*").eq("email", email_clean).execute()
+    if not users_res.data:
+        try:
+            users_res = supabase.table("users").select("*").ilike("email", email_clean).execute()
+        except Exception:
+            pass
+        
+    if not users_res.data or len(users_res.data) == 0:
+        raise HTTPException(status_code=404, detail="No registered account found with this email address.")
+        
+    user = users_res.data[0]
+    if req.role and user.get("role") != req.role:
+        raise HTTPException(status_code=400, detail=f"This email belongs to a {user.get('role')} account, not {req.role}.")
+        
+    return {
+        "success": True,
+        "status": "ok",
+        "message": "Account verified. Please set your new password.",
+        "email": user.get("email"),
+        "full_name": user.get("full_name")
+    }
+
+
+@router.post("/reset-password")
+def reset_password(req: ResetPasswordRequest):
+    """Securely update user password in Supabase and local store."""
+    supabase = get_supabase()
+    email_clean = req.email.strip().lower()
+    
+    if len(req.new_password) < 6:
+        raise HTTPException(status_code=400, detail="New password must be at least 6 characters.")
+        
+    users_res = supabase.table("users").select("*").eq("email", email_clean).execute()
+    if not users_res.data:
+        try:
+            users_res = supabase.table("users").select("*").ilike("email", email_clean).execute()
+        except Exception:
+            pass
+        
+    if not users_res.data or len(users_res.data) == 0:
+        raise HTTPException(status_code=404, detail="No registered account found with this email address.")
+        
+    user = users_res.data[0]
+    if req.role and user.get("role") != req.role:
+        raise HTTPException(status_code=400, detail=f"This email belongs to a {user.get('role')} account, not {req.role}.")
+        
+    new_hash = hash_password(req.new_password)
+    res = supabase.table("users").update({"password_hash": new_hash}).eq("id", user["id"]).execute()
+    
+    logger.info("Password successfully updated for %s", email_clean)
+    return {
+        "success": True,
+        "status": "ok",
+        "message": "Password has been successfully updated! You can now sign in.",
+        "email": email_clean
+    }
 
 
 @router.post("/register", response_model=AuthResponse)

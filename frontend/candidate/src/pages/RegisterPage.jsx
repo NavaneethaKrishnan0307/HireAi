@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { FileText, Lock, Mail, User, AlertCircle } from 'lucide-react';
+import { FileText, Lock, Mail, User, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
 
 export default function RegisterPage() {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -78,16 +79,38 @@ export default function RegisterPage() {
 
           <div className="form-group" style={{ marginBottom: '24px' }}>
             <label className="form-label">Password</label>
-            <div className="input-icon-wrapper">
+            <div className="input-icon-wrapper" style={{ position: 'relative' }}>
               <Lock size={18} className="input-icon-left" />
               <input 
-                type="password" 
+                type={showPassword ? 'text' : 'password'} 
                 className="form-input" 
                 placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                style={{ paddingRight: '40px' }}
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#64748b',
+                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
           </div>
 

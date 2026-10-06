@@ -44,6 +44,28 @@ export const HRAPI = {
     localStorage.removeItem('hr_user');
   },
 
+  async forgotPassword(email) {
+    const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), role: 'hr' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Email verification failed');
+    return data;
+  },
+
+  async resetPassword(email, newPassword) {
+    const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), new_password: newPassword, role: 'hr' })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Password reset failed');
+    return data;
+  },
+
   getCurrentUser() {
     const u = localStorage.getItem('hr_user');
     return u ? JSON.parse(u) : null;
