@@ -37,10 +37,16 @@ def sync():
         print("=" * 75)
         return False
 
+    if hasattr(sys.stdout, "reconfigure"):
+        try:
+            sys.stdout.reconfigure(encoding="utf-8")
+        except Exception:
+            pass
+
     try:
         from supabase import create_client
         supabase = create_client(supabase_url, supabase_key)
-        print("[✓] Successfully authenticated with Cloud Supabase!")
+        print("[OK] Successfully authenticated with Cloud Supabase!")
     except Exception as e:
         print(f"[-] Authentication failed with Cloud Supabase: {e}")
         return False
@@ -114,9 +120,36 @@ def sync():
             print(f"  [!] Job sync notice: {e}")
 
     apps = data.get("applications", [])
+    valid_statuses = {"applied", "under_review", "shortlisted", "rejected", "hired"}
+    status_map = {
+        "technical_assessment": "under_review",
+        "interview_scheduled": "under_review",
+        "offer_extended": "shortlisted",
+        "screened": "applied",
+        "reviewed": "under_review"
+    }
+    existing_job_ids = {j.get("id") for j in jobs}
+    existing_cand_ids = {c.get("id") for c in candidates}
+
     for a in apps:
+        raw_status = str(a.get("status") or "applied").lower()
+        norm_status = status_map.get(raw_status, raw_status if raw_status in valid_statuses else "applied")
+        jid = a.get("job_id")
+        cid = a.get("candidate_id")
+
+        if jid not in existing_job_ids or cid not in existing_cand_ids:
+            continue
+
+        app_payload = {
+            "id": a.get("id"),
+            "job_id": jid,
+            "candidate_id": cid,
+            "status": norm_status,
+            "applied_at": a.get("applied_at")
+        }
         try:
-            supabase.table("applications").upsert(a).execute()
+            supabase.table("applications").upsert(app_payload).execute()
+            print(f"  -> Synced application: {a.get('id')} ({norm_status})")
         except Exception as e:
             print(f"  [!] Application sync notice: {e}")
 
