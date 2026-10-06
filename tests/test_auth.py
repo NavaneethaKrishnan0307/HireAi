@@ -37,6 +37,13 @@ def test_candidate_registration_and_login():
     login_data = login_res.json()
     assert "token" in login_data
 
+    # Clean up test user from database
+    from backend.utils.supabase_client import get_supabase
+    sb = get_supabase()
+    user_id = reg_data["user"]["id"]
+    sb.table("candidates").delete().eq("user_id", user_id).execute()
+    sb.table("users").delete().eq("id", user_id).execute()
+
 def test_invalid_login():
     res = client.post("/api/auth/login", json={
         "email": "nonexistent_user@example.com",

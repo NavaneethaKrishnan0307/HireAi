@@ -63,38 +63,6 @@
       "role": "candidate",
       "full_name": "Ram",
       "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
-    },
-    {
-      "email": "test_candidate@example.com",
-      "password_hash": "dda69783f28fdf6f1c5a83e8400f2472e9300887d1dffffe12a07b92a3d0aa25",
-      "role": "candidate",
-      "full_name": "Test Candidate User",
-      "avatar_url": null,
-      "id": "fd362f31-5a21-445a-b839-4ead9c931401"
-    },
-    {
-      "email": "test_3ba259ae@example.com",
-      "password_hash": "dda69783f28fdf6f1c5a83e8400f2472e9300887d1dffffe12a07b92a3d0aa25",
-      "role": "candidate",
-      "full_name": "Test Candidate User",
-      "avatar_url": null,
-      "id": "8d5f8975-e873-4edf-baa0-30960f1a75ce"
-    },
-    {
-      "email": "test_04a86dd7@example.com",
-      "password_hash": "dda69783f28fdf6f1c5a83e8400f2472e9300887d1dffffe12a07b92a3d0aa25",
-      "role": "candidate",
-      "full_name": "Test Candidate User",
-      "avatar_url": null,
-      "id": "5c431032-2307-4f5b-9258-29037dc45be3"
-    },
-    {
-      "email": "test_31ef85bc@example.com",
-      "password_hash": "dda69783f28fdf6f1c5a83e8400f2472e9300887d1dffffe12a07b92a3d0aa25",
-      "role": "candidate",
-      "full_name": "Test Candidate User",
-      "avatar_url": null,
-      "id": "80cbae36-c09b-4184-bd83-d2e15c6ba206"
     }
   ],
   "hr_users": [
@@ -245,50 +213,6 @@
         "CSS",
         "TailwindCSS"
       ]
-    },
-    {
-      "user_id": "fd362f31-5a21-445a-b839-4ead9c931401",
-      "phone": "",
-      "location": "",
-      "current_title": "",
-      "years_of_experience": 0.0,
-      "education": "",
-      "resume_status": "unprocessed",
-      "parsed_skills": [],
-      "id": "d1891b19-e3ab-4c5a-8066-648759ce2810"
-    },
-    {
-      "user_id": "8d5f8975-e873-4edf-baa0-30960f1a75ce",
-      "phone": "",
-      "location": "",
-      "current_title": "",
-      "years_of_experience": 0.0,
-      "education": "",
-      "resume_status": "unprocessed",
-      "parsed_skills": [],
-      "id": "e739619d-ff0a-472e-a811-5a163d3524d0"
-    },
-    {
-      "user_id": "5c431032-2307-4f5b-9258-29037dc45be3",
-      "phone": "",
-      "location": "",
-      "current_title": "",
-      "years_of_experience": 0.0,
-      "education": "",
-      "resume_status": "unprocessed",
-      "parsed_skills": [],
-      "id": "a772fc4e-da69-45a1-b92e-8c8a51af212b"
-    },
-    {
-      "user_id": "80cbae36-c09b-4184-bd83-d2e15c6ba206",
-      "phone": "",
-      "location": "",
-      "current_title": "",
-      "years_of_experience": 0.0,
-      "education": "",
-      "resume_status": "unprocessed",
-      "parsed_skills": [],
-      "id": "94b06403-fe58-4d3c-8c80-a4096ead4005"
     }
   ],
   "jobs": [
@@ -479,8 +403,8 @@
       "job_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
       "candidate_id": "c3a3a3a3-3333-4333-a333-333333333333",
       "status": "shortlisted",
-      "applied_at": "2026-10-06T08:32:12.256144+00:00",
-      "id": "4857e44c-796b-4453-b5b0-14e1425b4635"
+      "applied_at": "2026-10-06T08:51:32.300614+00:00",
+      "id": "eb301a17-79fa-4252-a462-54062bd6180f"
     }
   ]
 }
