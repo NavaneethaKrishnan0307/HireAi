@@ -24,9 +24,18 @@ import { COUNTRY_CODES, parsePhoneNumber } from '../constants/countryCodes';
 import CustomSearchableDropdown from '../components/CustomSearchableDropdown';
 
 export default function UploadResumePage() {
+  const getUserProfileKey = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('candidate_user') || '{}');
+      return user?.id ? `candidate_profile_cache_${user.id}` : 'candidate_profile_cache';
+    } catch {
+      return 'candidate_profile_cache';
+    }
+  };
+
   const getCachedProfile = () => {
     try {
-      const cached = localStorage.getItem('candidate_profile_cache');
+      const cached = localStorage.getItem(getUserProfileKey());
       return cached ? JSON.parse(cached) : null;
     } catch {
       return null;
@@ -62,7 +71,7 @@ export default function UploadResumePage() {
       const p = await CandidateAPI.getProfile();
       if (p) {
         setProfile(p);
-        localStorage.setItem('candidate_profile_cache', JSON.stringify(p));
+        localStorage.setItem(getUserProfileKey(), JSON.stringify(p));
         if (p.full_name) setCandidateName(p.full_name);
         if (p.email) setCandidateEmail(p.email);
         if (p.phone) {
@@ -127,7 +136,7 @@ export default function UploadResumePage() {
 
       // Instantly cache in localStorage so refresh never wipes typed inputs
       const currentCache = getCachedProfile() || {};
-      localStorage.setItem('candidate_profile_cache', JSON.stringify({ ...currentCache, ...updatePayload }));
+      localStorage.setItem(getUserProfileKey(), JSON.stringify({ ...currentCache, ...updatePayload }));
 
       await CandidateAPI.updateProfile(updatePayload);
       setDetailsSavedMsg('Profile details successfully saved and updated in system!');

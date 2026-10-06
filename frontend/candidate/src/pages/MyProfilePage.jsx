@@ -22,9 +22,18 @@ import { COUNTRIES_AND_CITIES, parseLocation } from '../constants/countriesAndCi
 import CustomSearchableDropdown from '../components/CustomSearchableDropdown';
 
 export default function MyProfilePage() {
+  const getUserProfileKey = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('candidate_user') || '{}');
+      return user?.id ? `candidate_profile_cache_${user.id}` : 'candidate_profile_cache';
+    } catch {
+      return 'candidate_profile_cache';
+    }
+  };
+
   const getCachedProfile = () => {
     try {
-      const cached = localStorage.getItem('candidate_profile_cache');
+      const cached = localStorage.getItem(getUserProfileKey());
       return cached ? JSON.parse(cached) : null;
     } catch {
       return null;
@@ -113,7 +122,7 @@ export default function MyProfilePage() {
       const data = await CandidateAPI.getProfile();
       if (data) {
         setProfile(data);
-        localStorage.setItem('candidate_profile_cache', JSON.stringify(data));
+        localStorage.setItem(getUserProfileKey(), JSON.stringify(data));
         
         const parsedP = parsePhoneNumber(data.phone);
         setSelectedCountryCode(parsedP.dialCode);
@@ -204,7 +213,7 @@ export default function MyProfilePage() {
         parsed_skills: [...formData.parsed_skills, newSkill.trim()]
       };
       setFormData(updated);
-      localStorage.setItem('candidate_profile_cache', JSON.stringify(updated));
+      localStorage.setItem(getUserProfileKey(), JSON.stringify(updated));
       if (fieldErrors.parsed_skills) setFieldErrors(prev => ({ ...prev, parsed_skills: null }));
     }
     setNewSkill('');
@@ -216,7 +225,7 @@ export default function MyProfilePage() {
       parsed_skills: formData.parsed_skills.filter(s => s !== skillToRemove)
     };
     setFormData(updated);
-    localStorage.setItem('candidate_profile_cache', JSON.stringify(updated));
+    localStorage.setItem(getUserProfileKey(), JSON.stringify(updated));
   };
 
   const validateAllCompulsoryFields = () => {
@@ -315,7 +324,7 @@ export default function MyProfilePage() {
       };
 
       // Immediately cache to localStorage so it is never lost on refresh
-      localStorage.setItem('candidate_profile_cache', JSON.stringify(payload));
+      localStorage.setItem(getUserProfileKey(), JSON.stringify(payload));
       await CandidateAPI.updateProfile(payload);
       setSuccessMsg('✓ Profile and compulsory details saved successfully!');
       setValidationError('');

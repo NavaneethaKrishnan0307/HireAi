@@ -5,11 +5,12 @@ from config import settings
 
 logger = logging.getLogger(__name__)
 
-# Fallback in-memory database storage for development/demo mode when real key is not yet set
+# Fallback in-memory database storage with persistent JSON backing for development/demo mode
 class MockQueryBuilder:
-    def __init__(self, table_name: str, store: Dict[str, List[Dict[str, Any]]]):
+    def __init__(self, table_name: str, store: Dict[str, List[Dict[str, Any]]], client: Any = None):
         self.table_name = table_name
         self.store = store
+        self.client = client
         self._filters = []
         self._order_field = None
         self._order_desc = False
@@ -62,6 +63,8 @@ class MockQueryBuilder:
                     new_row["id"] = str(uuid.uuid4())
                 table_rows.append(new_row)
                 inserted.append(new_row)
+            if self.client and hasattr(self.client, "_save_to_disk"):
+                self.client._save_to_disk()
             return MockResponse(data=inserted)
 
         # Apply filters
@@ -85,12 +88,16 @@ class MockQueryBuilder:
         if self._action == "update":
             for row in matched_rows:
                 row.update(self._payload)
+            if self.client and hasattr(self.client, "_save_to_disk"):
+                self.client._save_to_disk()
             return MockResponse(data=matched_rows)
 
         if self._action == "delete":
             for row in matched_rows:
                 if row in table_rows:
                     table_rows.remove(row)
+            if self.client and hasattr(self.client, "_save_to_disk"):
+                self.client._save_to_disk()
             return MockResponse(data=matched_rows)
 
         # Select action
@@ -109,10 +116,88 @@ class MockResponse:
 class MockSupabaseClient:
     def __init__(self):
         self.store: Dict[str, List[Dict[str, Any]]] = {}
+        import json
+        from pathlib import Path
+        self.db_file = Path(__file__).resolve().parent.parent.parent / "database" / "mock_supabase_db.json"
+        self._load_from_disk_or_seed()
+
+    def _save_to_disk(self):
+        try:
+            import json
+            self.db_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.db_file, "w", encoding="utf-8") as f:
+                json.dump(self.store, f, indent=2, default=str)
+        except Exception as e:
+            logger.warning("Could not persist mock database to disk: %s", e)
+
+    def _load_from_disk_or_seed(self):
+        import json
+        if self.db_file.exists():
+            try:
+                with open(self.db_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if isinstance(data, dict) and "users" in data and "jobs" in data:
+                    self.store = data
+                    logger.info("Loaded persistent mock database from %s", self.db_file)
+                    self._ensure_sam_and_ram_seeded()
+                    self._save_to_disk()
+                    return
+            except Exception as e:
+                logger.warning("Failed to load mock DB from %s: %s. Re-seeding.", self.db_file, e)
+
         self._seed_sample_data()
+        self._ensure_sam_and_ram_seeded()
+        self._save_to_disk()
+
+    def _ensure_sam_and_ram_seeded(self):
+        user_emails = {u.get("email") for u in self.store.get("users", [])}
+        if "sam@example.com" not in user_emails:
+            self.store.setdefault("users", []).append({
+                "id": "9655cd40-8424-4204-94ba-77a433bfe924",
+                "email": "sam@example.com",
+                "password_hash": "$2b$12$K.zT7rZfN7bS09h7Z8q2UOn5Kmsr5tGk8RkH0O1F8e.xT9i1s4YWW",
+                "role": "candidate",
+                "full_name": "Sam",
+                "avatar_url": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
+            })
+            self.store.setdefault("candidates", []).append({
+                "id": "8f53fa1e-997e-4959-bde1-f84b718296b9",
+                "user_id": "9655cd40-8424-4204-94ba-77a433bfe924",
+                "phone": "+91 9887766551",
+                "location": "Bangalore, India",
+                "current_title": "Software Developer",
+                "years_of_experience": 2.0,
+                "education": "B.Tech in Computer Science",
+                "resume_filename": None,
+                "resume_status": "unprocessed",
+                "resume_url": None,
+                "parsed_skills": ["Python", "FastAPI", "React", "SQL"]
+            })
+        if "ram@example.com" not in user_emails:
+            self.store.setdefault("users", []).append({
+                "id": "9655cd40-8424-4204-94ba-77a433bfe925",
+                "email": "ram@example.com",
+                "password_hash": "$2b$12$K.zT7rZfN7bS09h7Z8q2UOn5Kmsr5tGk8RkH0O1F8e.xT9i1s4YWW",
+                "role": "candidate",
+                "full_name": "Ram",
+                "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
+            })
+            self.store.setdefault("candidates", []).append({
+                "id": "8f53fa1e-997e-4959-bde1-f84b718296ba",
+                "user_id": "9655cd40-8424-4204-94ba-77a433bfe925",
+                "phone": "+91 9887766552",
+                "location": "Chennai, India",
+                "current_title": "Frontend Engineer",
+                "years_of_experience": 1.5,
+                "education": "B.E. in Information Technology",
+                "resume_filename": None,
+                "resume_status": "unprocessed",
+                "resume_url": None,
+                "parsed_skills": ["React", "JavaScript", "HTML", "CSS", "TailwindCSS"]
+            })
 
     def table(self, table_name: str):
-        return MockQueryBuilder(table_name, self.store)
+        return MockQueryBuilder(table_name, self.store, client=self)
 
     def _seed_sample_data(self):
         # Seed realistic users

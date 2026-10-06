@@ -512,4 +512,4 @@ class ResumeParser:
             "extracted_text_preview": raw_text[:500] if raw_text else "",
             "filename": file_path.name,
             "status": "processed"
-        } }
+        }

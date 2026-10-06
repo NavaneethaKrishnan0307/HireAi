@@ -1,3 +1,5 @@
+import re
+import json
 from typing import List, Dict, Any, Optional
 from backend.services.skill_matcher import SkillMatcher
 from backend.services.rule_engine import RuleEngine

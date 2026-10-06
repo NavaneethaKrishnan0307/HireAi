@@ -1,3 +1,5 @@
+import re
+import json
 from typing import List, Dict, Any, Optional
 from backend.services.skill_matcher import SkillMatcher
 from backend.services.rule_engine import RuleEngine
@@ -642,9 +644,7 @@ class CandidateRanker:
                     "is_domain_mismatch": eval_res.get("is_domain_mismatch", False),
                     "domain_status": eval_res.get("domain_status", "Direct Domain Fit"),
                     "domain_warning": eval_res.get("domain_warning"),
-                    "skill_gap_advice": eval_res["skill_gap_advice"],
-                    "proof_trace": eval_res.get("proof_trace"),
-                    "interview_questions": eval_res.get("interview_questions")
+                    "skill_gap_advice": eval_res["skill_gap_advice"]
                 })
             job_matrix.sort(key=lambda x: (-x["match_score"], str(x["title"])))
 

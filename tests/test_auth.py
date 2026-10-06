@@ -11,9 +11,11 @@ def test_health_check():
     assert data["status"] == "ok"
 
 def test_candidate_registration_and_login():
+    import uuid
+    test_email = f"test_{uuid.uuid4().hex[:8]}@example.com"
     # 1. Register candidate
     reg_payload = {
-        "email": "test_candidate@example.com",
+        "email": test_email,
         "password": "securepassword123",
         "full_name": "Test Candidate User",
         "role": "candidate"
@@ -22,12 +24,12 @@ def test_candidate_registration_and_login():
     assert reg_res.status_code == 200
     reg_data = reg_res.json()
     assert "token" in reg_data
-    assert reg_data["user"]["email"] == "test_candidate@example.com"
+    assert reg_data["user"]["email"] == test_email
     assert reg_data["user"]["role"] == "candidate"
 
     # 2. Login candidate
     login_payload = {
-        "email": "test_candidate@example.com",
+        "email": test_email,
         "password": "securepassword123"
     }
     login_res = client.post("/api/auth/login", json=login_payload)

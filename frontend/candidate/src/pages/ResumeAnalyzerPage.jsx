@@ -23,16 +23,25 @@ import {
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
 
-export default function ResumeAnalyzerPage() {
+  const getUserReportKey = () => {
+    try {
+      const user = JSON.parse(localStorage.getItem('candidate_user') || '{}');
+      return user?.id ? `candidate_resume_report_cache_${user.id}` : 'candidate_resume_report_cache';
+    } catch {
+      return 'candidate_resume_report_cache';
+    }
+  };
+
   const getCachedReport = () => {
     try {
-      const cached = localStorage.getItem('candidate_resume_report_cache');
+      const cached = localStorage.getItem(getUserReportKey());
       return cached ? JSON.parse(cached) : null;
     } catch {
       return null;
     }
   };
 
+export default function ResumeAnalyzerPage() {
   const initialReport = getCachedReport();
   const [report, setReport] = useState(initialReport);
   const [loading, setLoading] = useState(!initialReport);
@@ -51,13 +60,15 @@ export default function ResumeAnalyzerPage() {
       const data = await CandidateAPI.getResumeReport();
       if (data) {
         setReport(data);
-        localStorage.setItem('candidate_resume_report_cache', JSON.stringify(data));
+        localStorage.setItem(getUserReportKey(), JSON.stringify(data));
       }
     } catch (err) {
       console.warn('Could not refresh resume report from server:', err);
-      if (!report) {
-        setError(err.message || 'Failed to generate resume report');
-      }
+      // Clean up stale cache so another candidate's old report is never shown
+      localStorage.removeItem(getUserReportKey());
+      localStorage.removeItem('candidate_resume_report_cache');
+      setReport(null);
+      setError(err.message || 'Please upload your resume to generate your personalized report.');
     } finally {
       setLoading(false);
     }

@@ -114,14 +114,16 @@ def update_profile(req: CandidateProfileUpdate, user: Dict[str, Any] = Depends(r
             parsed_data["profile_name"] = req.full_name.strip()
 
         cand_update["parsed_data"] = parsed_data
-        if cand_update.get("parsed_skills") and existing_cand.get("resume_status") == "unprocessed":
+        if existing_cand.get("resume_filename") or existing_cand.get("resume_url"):
             cand_update["resume_status"] = "processed"
+        else:
+            cand_update["resume_status"] = "unprocessed"
 
         res = supabase.table("candidates").update(cand_update).eq("user_id", user_id).execute()
         updated = res.data[0] if res.data else cand_res.data[0]
     else:
         cand_update["user_id"] = user_id
-        cand_update.setdefault("resume_status", "processed" if req.parsed_skills else "unprocessed")
+        cand_update.setdefault("resume_status", "unprocessed")
         cand_update.setdefault("parsed_skills", req.parsed_skills or [])
         cand_update["parsed_data"] = {
             "skills": req.parsed_skills or [],
@@ -208,6 +210,14 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
     cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
     cand_data = cand_res.data[0] if cand_res.data else {}
 
+    user_res = supabase.table("users").select("full_name, email").eq("id", user_id).execute()
+    if user_res.data and len(user_res.data) > 0:
+        cand_data["full_name"] = user_res.data[0].get("full_name") or user.get("full_name", "Candidate")
+        cand_data["email"] = user_res.data[0].get("email") or user.get("email", "")
+    else:
+        cand_data["full_name"] = user.get("full_name", "Candidate")
+        cand_data["email"] = user.get("email", "")
+
     import json
     cand_skills = cand_data.get("parsed_skills", []) or []
     if isinstance(cand_skills, str):
@@ -232,8 +242,7 @@ def get_candidate_jobs(user: Dict[str, Any] = Depends(require_candidate)):
 
     has_resume = bool(
         cand_data.get("resume_filename") or 
-        cand_data.get("resume_url") or 
-        cand_data.get("resume_status") == "processed"
+        cand_data.get("resume_url")
     )
     has_skills = bool(cand_skills and len(cand_skills) > 0)
     is_profile_complete = bool(has_resume and has_skills)
@@ -319,10 +328,17 @@ def get_job_detail(job_id: str, user: Dict[str, Any] = Depends(require_candidate
     cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
     cand_data = cand_res.data[0] if cand_res.data else {}
 
+    user_res = supabase.table("users").select("full_name, email").eq("id", user_id).execute()
+    if user_res.data and len(user_res.data) > 0:
+        cand_data["full_name"] = user_res.data[0].get("full_name") or user.get("full_name", "Candidate")
+        cand_data["email"] = user_res.data[0].get("email") or user.get("email", "")
+    else:
+        cand_data["full_name"] = user.get("full_name", "Candidate")
+        cand_data["email"] = user.get("email", "")
+
     has_resume = bool(
         cand_data.get("resume_filename") or 
-        cand_data.get("resume_url") or 
-        cand_data.get("resume_status") == "processed"
+        cand_data.get("resume_url")
     )
     cand_skills = cand_data.get("parsed_skills", []) or []
     is_profile_complete = bool(has_resume and cand_skills)
@@ -362,6 +378,14 @@ def apply_to_job(req: ApplicationCreate, user: Dict[str, Any] = Depends(require_
     candidate = cand_res.data[0]
     candidate_id = candidate["id"]
 
+    user_res = supabase.table("users").select("full_name, email").eq("id", user_id).execute()
+    if user_res.data and len(user_res.data) > 0:
+        candidate["full_name"] = user_res.data[0].get("full_name") or user.get("full_name", "Candidate")
+        candidate["email"] = user_res.data[0].get("email") or user.get("email", "")
+    else:
+        candidate["full_name"] = user.get("full_name", "Candidate")
+        candidate["email"] = user.get("email", "")
+
     # Block application if resume is not uploaded or profile is unfilled
     import json
     cand_skills = candidate.get("parsed_skills", []) or []
@@ -373,8 +397,7 @@ def apply_to_job(req: ApplicationCreate, user: Dict[str, Any] = Depends(require_
     
     has_resume = bool(
         candidate.get("resume_filename") or 
-        candidate.get("resume_url") or 
-        candidate.get("resume_status") == "processed"
+        candidate.get("resume_url")
     )
     if not has_resume or not cand_skills:
         raise HTTPException(
@@ -394,6 +417,16 @@ def apply_to_job(req: ApplicationCreate, user: Dict[str, Any] = Depends(require_
     if existing_app.data and len(existing_app.data) > 0:
         raise HTTPException(status_code=400, detail="You have already applied to this position")
 
+    # Compute and verify explainable AI matching result
+    match_eval = CandidateRanker.calculate_candidate_match(candidate, job)
+
+    # Block application if strict identity mismatch detected
+    if match_eval.get("is_domain_mismatch") and match_eval.get("domain_status") == "Identity Mismatch":
+        raise HTTPException(
+            status_code=400,
+            detail=f"Application Blocked: {match_eval.get('domain_warning')}"
+        )
+
     # Insert application
     app_payload = {
         "job_id": req.job_id,
@@ -403,8 +436,6 @@ def apply_to_job(req: ApplicationCreate, user: Dict[str, Any] = Depends(require_
     new_app_res = supabase.table("applications").insert(app_payload).execute()
     created_app = new_app_res.data[0] if new_app_res.data else app_payload
 
-    # Compute and save explainable AI matching result
-    match_eval = CandidateRanker.calculate_candidate_match(candidate, job)
     match_payload = {
         "application_id": created_app.get("id"),
         "job_id": req.job_id,
@@ -503,6 +534,13 @@ def get_candidate_resume_report(user: Dict[str, Any] = Depends(require_candidate
     else:
         cand_data["full_name"] = user.get("full_name", "Candidate")
         cand_data["email"] = user.get("email", "")
+
+    has_resume = bool(cand_data.get("resume_filename") or cand_data.get("resume_url"))
+    if not has_resume:
+        raise HTTPException(
+            status_code=400,
+            detail="Please upload your resume to generate your personalized report."
+        )
 
     # Fetch active open opportunities across the platform
     jobs_res = supabase.table("jobs").select("*").eq("status", "active").execute()
