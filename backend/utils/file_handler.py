@@ -33,6 +33,18 @@ def process_and_upload_resume(upload_file: UploadFile) -> tuple[bytes, str, str,
             detail=f"File exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB."
         )
 
+    # Enterprise Security: Binary Magic Byte signature verification
+    if file_ext == ".pdf" and not file_bytes.startswith(b"%PDF-"):
+        raise HTTPException(
+            status_code=400,
+            detail="Security Verification Failed: Uploaded file is not a valid PDF binary document. Potential disguised malware blocked."
+        )
+    if file_ext == ".docx" and not file_bytes.startswith(b"PK\x03\x04"):
+        raise HTTPException(
+            status_code=400,
+            detail="Security Verification Failed: Uploaded file is not a valid DOCX document package."
+        )
+
     # Generate unique filename for cloud storage
     clean_name = Path(original_filename).stem.replace(" ", "_")
     unique_filename = f"{clean_name}_{uuid.uuid4().hex[:8]}{file_ext}"

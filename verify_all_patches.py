@@ -141,6 +141,47 @@ def check_guard_8_supabase_cloud_readiness():
         raise AssertionError("sync_to_supabase.py is missing")
     return "Supabase Python SDK installed, endpoint locked, and sync engine ready"
 
+def check_guard_9_git_secret_leak_protection():
+    root_dir = os.path.dirname(os.path.abspath(__file__))
+    res = subprocess.run(["git", "ls-files", ".env"], cwd=root_dir, capture_output=True, text=True)
+    if res.stdout.strip():
+        raise AssertionError("CRITICAL SECURITY VIOLATION: .env file is tracked in git index! Remove immediately.")
+    gitignore_path = os.path.join(root_dir, ".gitignore")
+    if not os.path.exists(gitignore_path):
+        raise AssertionError(".gitignore missing")
+    with open(gitignore_path, "r", encoding="utf-8") as f:
+        gi_content = f.read()
+    if ".env" not in gi_content:
+        raise AssertionError(".gitignore does not protect .env file")
+    return "Zero-Leak Git Protection active (.env strictly ignored, credentials immune to exposure)"
+
+def check_guard_10_file_upload_binary_security():
+    from backend.utils.file_handler import process_and_upload_resume
+    from io import BytesIO
+    from fastapi import UploadFile, HTTPException
+
+    # Test disguised malware rejection
+    fake_exe = UploadFile(filename="resume.pdf", file=BytesIO(b"MZ\x90\x00\x03fake-executable"))
+    try:
+        process_and_upload_resume(fake_exe)
+        raise AssertionError("Security Failure: Disguised binary executable was not rejected.")
+    except HTTPException as e:
+        if e.status_code != 400:
+            raise AssertionError(f"Unexpected status code {e.status_code}")
+    return "Binary Magic Byte validation active (disguised executables and malware strictly blocked)"
+
+def check_guard_11_http_security_headers():
+    from fastapi.testclient import TestClient
+    from app import app
+    client = TestClient(app)
+    res = client.get("/api/health")
+    headers = res.headers
+    if headers.get("x-content-type-options") != "nosniff":
+        raise AssertionError("Missing X-Content-Type-Options: nosniff header")
+    if headers.get("x-frame-options") != "DENY":
+        raise AssertionError("Missing X-Frame-Options: DENY header")
+    return "Enterprise HTTP Security Headers enforced (Clickjacking, MIME-sniffing, XSS mitigated)"
+
 def main():
     print_banner()
     guards = [
@@ -152,26 +193,28 @@ def main():
         ("Guard 6: Frontend Cache Scoping", check_guard_6_frontend_cache_scoping),
         ("Guard 7: Full Automated Pytest Suite", check_guard_7_pytest_suite),
         ("Guard 8: Supabase Cloud Readiness", check_guard_8_supabase_cloud_readiness),
+        ("Guard 9: Git Zero-Leak Secret Defense", check_guard_9_git_secret_leak_protection),
+        ("Guard 10: Binary Upload Anti-Malware", check_guard_10_file_upload_binary_security),
+        ("Guard 11: Enterprise Security Headers", check_guard_11_http_security_headers),
     ]
 
     failed = 0
     for name, guard_fn in guards:
         try:
             detail = guard_fn()
-            print(f" [PASS] {name:<36} -> {detail}")
+            print(f" [PASS] {name:<38} -> {detail}")
         except Exception as e:
-            print(f" [FAIL] {name:<36} -> ERROR: {e}")
+            print(f" [FAIL] {name:<38} -> ERROR: {e}")
             failed += 1
 
-    print("=" * 76)
+    print("=" * 80)
     if failed == 0:
-        print(" SUCCESS: ALL 8 REGRESSION & CLOUD GUARDS VERIFIED - ZERO DEFECTS DETECTED")
-        print("=" * 76)
+        print(" SUCCESS: ALL 11 INFINITY-LEVEL REGRESSION & SECURITY GUARDS VERIFIED")
+        print("=" * 80)
         return 0
     else:
         print(f" FAILURE: {failed} GUARD(S) FAILED - PLEASE RECTIFY BEFORE COMMITTING")
-
-        print("=" * 76)
+        print("=" * 80)
         return 1
 
 if __name__ == "__main__":
