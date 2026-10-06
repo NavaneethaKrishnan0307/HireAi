@@ -63,6 +63,14 @@
       "role": "candidate",
       "full_name": "Ram",
       "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
+    },
+    {
+      "email": "raja@gmail.com",
+      "password_hash": "b45bc887692c7d9bae3f114deb7f28f105049f554c32a6e3c68aea8c6ecd71d5",
+      "role": "candidate",
+      "full_name": "RAJA",
+      "avatar_url": null,
+      "id": "e17fabd5-269f-4082-82d6-e6b8db536e79"
     }
   ],
   "hr_users": [
@@ -213,6 +221,54 @@
         "CSS",
         "TailwindCSS"
       ]
+    },
+    {
+      "user_id": "e17fabd5-269f-4082-82d6-e6b8db536e79",
+      "phone": "+91 2345678901",
+      "location": "Chennai, India",
+      "current_title": "cyber",
+      "years_of_experience": 7.5,
+      "education": "B.Tech / Graduate",
+      "resume_status": "processed",
+      "parsed_skills": [
+        "python"
+      ],
+      "id": "347d8944-1e7e-47a8-9334-3e413cd553db",
+      "full_name": "RAJA",
+      "email": "raja@gmail.com",
+      "resume_filename": "RESUME_a10af626.pdf",
+      "resume_url": "supabase://resumes/RESUME_a10af626_af2cf2a0.pdf",
+      "parsed_data": {
+        "name": "Candidate Profile",
+        "email": null,
+        "phone": "+91 2345678901",
+        "skills": [
+          "python"
+        ],
+        "education": "B.Tech / Graduate",
+        "years_of_experience": 7.5,
+        "current_title": "cyber",
+        "document_validation": {
+          "is_valid": false,
+          "authenticity_score": 10,
+          "verdict": "INVALID_EMPTY_OR_UNREADABLE",
+          "detected_sections": [],
+          "missing_sections": [
+            "Contact",
+            "Skills",
+            "Experience/Projects",
+            "Education"
+          ],
+          "reason": "The uploaded document contains insufficient or unreadable text."
+        },
+        "line_analysis": [],
+        "raw_text": "",
+        "extracted_text_preview": "",
+        "filename": "RESUME_a10af626.pdf",
+        "status": "processed",
+        "resume_name": "Candidate Profile",
+        "profile_name": "RAJA"
+      }
     }
   ],
   "jobs": [
