@@ -183,7 +183,29 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
+        <div style={{ marginTop: '20px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
+          <p style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+            ⚡ 1-Click Recruiter Demo Profiles
+          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => { setEmail('saranhr@gmail.com'); setPassword('password123'); }}
+              style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '600', color: '#047857', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
+            >
+              👤 Fill: <strong>Saran HR</strong> (saranhr@gmail.com / password123)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('hr@techcorp.com'); setPassword('password123'); }}
+              style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '600', color: '#475569', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
+            >
+              👤 Fill: <strong>Sarah Jenkins</strong> (hr@techcorp.com)
+            </button>
+          </div>
+        </div>
+
+        <div style={{ marginTop: '16px', textAlign: 'center', fontSize: '13px', color: '#64748b' }}>
           Don't have an HR account?{' '}
           <Link to="/register" style={{ color: '#10b981', fontWeight: '700' }}>Create Recruiter Account</Link>
         </div>

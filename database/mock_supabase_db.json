@@ -71,6 +71,14 @@
       "full_name": "RAJA",
       "avatar_url": null,
       "id": "e17fabd5-269f-4082-82d6-e6b8db536e79"
+    },
+    {
+      "id": "559b23f0-0603-49e9-8e82-423f4897b6d3",
+      "email": "saranhr@gmail.com",
+      "password_hash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
+      "role": "hr",
+      "full_name": "Saran HR",
+      "avatar_url": null
     }
   ],
   "hr_users": [
@@ -79,6 +87,12 @@
       "user_id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
       "company_name": "TechCorp Solutions",
       "department": "Engineering Recruitment"
+    },
+    {
+      "id": "7f9ed44c-b299-47c6-a430-12b8f5c073c6",
+      "user_id": "559b23f0-0603-49e9-8e82-423f4897b6d3",
+      "company_name": "HireAI Tech",
+      "department": "Talent Acquisition"
     }
   ],
   "candidates": [
