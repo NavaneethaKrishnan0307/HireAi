@@ -3,6 +3,11 @@ import { Users, User } from 'lucide-react';
 
 export default function Header({ user }) {
   const displayName = user?.full_name || 'HR Recruiter';
+  const companyName = user?.company_name || 
+    (user?.email?.toLowerCase().includes('ghr@') || user?.email?.toLowerCase().includes('google') ? 'Google' :
+     user?.email?.toLowerCase().includes('azhr@') || user?.email?.toLowerCase().includes('azenture') ? 'AZENTURE' :
+     user?.email?.toLowerCase().includes('techcorp') || user?.email?.toLowerCase().includes('sarah') ? 'TechCorp Solutions' :
+     'Google');
 
   return (
     <header className="hr-header">
@@ -25,7 +30,7 @@ export default function Header({ user }) {
           boxShadow: '0 2px 6px rgba(0,0,0,0.06)'
         }}>
           <span style={{ fontSize: '12px', fontWeight: '700', color: '#38bdf8', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '5px' }}>
-            🏢 {user?.company_name || 'Enterprise MNC'}
+            🏢 {companyName}
           </span>
           <span style={{
             fontSize: '10px',

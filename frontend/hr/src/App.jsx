@@ -14,14 +14,25 @@ import { HRAPI } from './services/api';
 import './App.css';
 
 function ProtectedLayout({ children }) {
-  const user = HRAPI.getCurrentUser();
-  if (!user) {
+  const [currentUser, setCurrentUser] = React.useState(HRAPI.getCurrentUser());
+
+  React.useEffect(() => {
+    async function loadFreshUser() {
+      const refreshed = await HRAPI.syncUser();
+      if (refreshed) {
+        setCurrentUser(refreshed);
+      }
+    }
+    loadFreshUser();
+  }, []);
+
+  if (!currentUser) {
     return <Navigate to="/login" replace />;
   }
 
   return (
     <div className="hr-app-container">
-      <Header user={user} />
+      <Header user={currentUser} />
       <div className="hr-main-wrapper">
         <Sidebar />
         <main style={{ flex: 1, backgroundColor: '#f8fafc', overflowY: 'auto' }}>

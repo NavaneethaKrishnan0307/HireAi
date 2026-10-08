@@ -185,9 +185,23 @@ export default function LoginPage() {
 
         <div style={{ marginTop: '20px', padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px dashed #cbd5e1' }}>
           <p style={{ margin: '0 0 8px 0', fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            ⚡ 1-Click Recruiter Demo Profiles
+            ⚡ 1-Click Multi-Company Recruiter Profiles
           </p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <button
+              type="button"
+              onClick={() => { setEmail('ghr@gmail.com'); setPassword('password123'); }}
+              style={{ padding: '7px 10px', fontSize: '12px', fontWeight: '600', color: '#1e40af', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
+            >
+              🏢 Fill: <strong>Tim (Google HR)</strong> (ghr@gmail.com / password123)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('azhr@gmail.com'); setPassword('password123'); }}
+              style={{ padding: '7px 10px', fontSize: '12px', fontWeight: '600', color: '#7c2d12', backgroundColor: '#fff7ed', border: '1px solid #fed7aa', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
+            >
+              🏢 Fill: <strong>TOM (AZENTURE HR)</strong> (azhr@gmail.com / password123)
+            </button>
             <button
               type="button"
               onClick={() => { setEmail('saranhr@gmail.com'); setPassword('password123'); }}
@@ -200,7 +214,7 @@ export default function LoginPage() {
               onClick={() => { setEmail('hr@techcorp.com'); setPassword('password123'); }}
               style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '600', color: '#475569', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
             >
-              👤 Fill: <strong>Sarah Jenkins</strong> (hr@techcorp.com)
+              👤 Fill: <strong>Sarah Jenkins</strong> (hr@techcorp.com / password123)
             </button>
           </div>
         </div>

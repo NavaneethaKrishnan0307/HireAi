@@ -1,17 +1,29 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, CheckCircle, Briefcase } from 'lucide-react';
+import { Plus, CheckCircle, Briefcase, Building2, ShieldCheck } from 'lucide-react';
 import { HRAPI } from '../services/api';
+
+function resolveRecruiterCompany(user) {
+  if (user?.company_name && !user.company_name.toLowerCase().includes('enterprise')) {
+    return user.company_name;
+  }
+  const email = (user?.email || '').toLowerCase();
+  if (email.includes('ghr@') || email.includes('google')) return 'Google';
+  if (email.includes('azhr@') || email.includes('azenture')) return 'AZENTURE';
+  if (email.includes('techcorp') || email.includes('sarah')) return 'TechCorp Solutions';
+  return user?.company_name || 'Google';
+}
 
 export default function CreateJobPage() {
   const navigate = useNavigate();
   const user = HRAPI.getCurrentUser();
-  const activeCompany = user?.company_name || 'TechCorp Solutions';
+  const initialCompany = resolveRecruiterCompany(user);
 
   const [loading, setLoading] = useState(false);
+  const [activeVaultCompany, setActiveVaultCompany] = useState(initialCompany);
   const [formData, setFormData] = useState({
     title: '',
-    company: activeCompany,
+    company: initialCompany,
     department: 'Engineering',
     location: 'Bangalore',
     min_experience: 3.0,
@@ -25,6 +37,33 @@ export default function CreateJobPage() {
     description: 'We are seeking an experienced software engineer to lead design and development of high performance cloud applications.'
   });
 
+  useEffect(() => {
+    async function syncRecruiterVault() {
+      try {
+        const synced = await HRAPI.syncUser();
+        if (synced?.company_name) {
+          setActiveVaultCompany(synced.company_name);
+          setFormData(prev => ({
+            ...prev,
+            company: prev.company === 'TechCorp Solutions' ? synced.company_name : prev.company || synced.company_name
+          }));
+        } else {
+          const vault = await HRAPI.getCompanyVault();
+          if (vault?.company_name) {
+            setActiveVaultCompany(vault.company_name);
+            setFormData(prev => ({
+              ...prev,
+              company: prev.company === 'TechCorp Solutions' ? vault.company_name : prev.company || vault.company_name
+            }));
+          }
+        }
+      } catch (err) {
+        console.warn('Could not auto-sync vault metadata:', err);
+      }
+    }
+    syncRecruiterVault();
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -35,6 +74,7 @@ export default function CreateJobPage() {
 
       await HRAPI.createJob({
         ...formData,
+        company: (formData.company || activeVaultCompany || 'Google').trim(),
         min_experience: parseFloat(formData.min_experience),
         max_experience: parseFloat(formData.max_experience),
         min_salary: parseFloat(formData.min_salary),
@@ -44,7 +84,7 @@ export default function CreateJobPage() {
         certifications_preferred: certs
       });
 
-      alert('Job opening published successfully! Position is now active and accessible to all matching candidates.');
+      alert('Job opening published successfully! Position is now active in your company secure vault and accessible to matching candidates.');
       navigate('/matches');
     } catch (err) {
       alert(err.message || 'Failed to create job');
@@ -74,16 +114,19 @@ export default function CreateJobPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Company / Organization</span>
-                <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '600' }}>🔒 Locked to your Secure Vault</span>
+                <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <ShieldCheck size={14} /> Locked to {activeVaultCompany || 'Google'} Secure Vault
+                </span>
               </label>
               <input 
                 type="text" 
                 className="form-input" 
                 value={formData.company} 
-                readOnly
-                style={{ backgroundColor: '#f8fafc', color: '#334155', fontWeight: '600', cursor: 'not-allowed' }}
+                onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                placeholder="e.g. Google, AZENTURE, TechCorp Solutions"
+                style={{ backgroundColor: '#ffffff', color: '#0f172a', fontWeight: '600' }}
                 required 
               />
             </div>

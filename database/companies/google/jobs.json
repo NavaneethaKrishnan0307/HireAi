@@ -15,5 +15,43 @@
     ],
     "description": "Ensure high availability, low latency, and distributed systems resilience for planetary-scale applications.",
     "status": "active"
+  },
+  {
+    "id": "bae658e3-8d45-4944-a711-4c85ded25472",
+    "hr_id": "675f536d-e331-41d1-838e-afb5b74abd17",
+    "title": "Site Reliability Engineer",
+    "company": "google",
+    "location": "Hyderabad",
+    "min_experience": 3.0,
+    "max_experience": 6.0,
+    "min_salary": 2000000.0,
+    "max_salary": 3500000.0,
+    "education_required": "B.Tech/B.E.",
+    "certifications_preferred": [
+      "GCP"
+    ],
+    "description": "Test SRE role for Google",
+    "status": "active",
+    "created_at": "2026-10-08T17:54:51.075658+00:00",
+    "updated_at": "2026-10-08T17:54:51.075658+00:00"
+  },
+  {
+    "id": "60d30ba4-b9ec-48fa-9f8e-255fea0eb492",
+    "hr_id": "d2cc53b1-0397-4fdc-952a-82908a8d340a",
+    "title": "cyber staff",
+    "company": "Google",
+    "location": "Bangalore",
+    "min_experience": 3.0,
+    "max_experience": 6.0,
+    "min_salary": 1200000.0,
+    "max_salary": 2000000.0,
+    "education_required": "B.Tech/B.E. in Computer Science",
+    "certifications_preferred": [
+      "AWS Certified Developer"
+    ],
+    "description": "We are seeking an experienced software engineer to lead design and development of high performance cloud applications.",
+    "status": "active",
+    "created_at": "2026-10-08T18:14:48.780009+00:00",
+    "updated_at": "2026-10-08T18:14:48.780009+00:00"
   }
 ]

@@ -8,6 +8,7 @@ function getAuthHeader() {
 export const HRAPI = {
   // Auth
   async login(email, password) {
+    const cleanEmail = email.trim().toLowerCase();
     const res = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -15,7 +16,11 @@ export const HRAPI = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Login failed');
-    const company = data.user?.company_name || data.role_profile?.company_name || 'TechCorp Solutions';
+    const heuristic = cleanEmail.includes('ghr@') || cleanEmail.includes('google') ? 'Google' :
+                      cleanEmail.includes('azhr@') || cleanEmail.includes('azenture') ? 'AZENTURE' :
+                      cleanEmail.includes('techcorp') || cleanEmail.includes('sarah') ? 'TechCorp Solutions' :
+                      'Google';
+    const company = data.user?.company_name || data.role_profile?.company_name || heuristic;
     localStorage.setItem('hr_token', data.token);
     localStorage.setItem('hr_user', JSON.stringify({ ...data.user, company_name: company }));
     return data;
@@ -54,6 +59,29 @@ export const HRAPI = {
     return res.json();
   },
 
+  async syncUser() {
+    try {
+      const vault = await this.getCompanyVault();
+      if (vault?.company_name) {
+        const u = this.getCurrentUser() || {};
+        const raw = String(vault.company_name).trim();
+        const formatted = raw.toLowerCase() === 'google' ? 'Google' :
+                          raw.toLowerCase() === 'azenture' ? 'AZENTURE' :
+                          raw.toLowerCase().includes('techcorp') ? 'TechCorp Solutions' :
+                          raw.charAt(0).toUpperCase() + raw.slice(1);
+        const updated = {
+          ...u,
+          company_name: formatted
+        };
+        localStorage.setItem('hr_user', JSON.stringify(updated));
+        return updated;
+      }
+    } catch (e) {
+      console.warn('Could not sync company vault profile:', e);
+    }
+    return this.getCurrentUser();
+  },
+
   async forgotPassword(email) {
     const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
       method: 'POST',
@@ -78,7 +106,20 @@ export const HRAPI = {
 
   getCurrentUser() {
     const u = localStorage.getItem('hr_user');
-    return u ? JSON.parse(u) : null;
+    if (!u) return null;
+    try {
+      const userObj = JSON.parse(u);
+      if (!userObj.company_name) {
+        const em = (userObj.email || '').toLowerCase();
+        userObj.company_name = em.includes('ghr@') || em.includes('google') ? 'Google' :
+                               em.includes('azhr@') || em.includes('azenture') ? 'AZENTURE' :
+                               em.includes('techcorp') || em.includes('sarah') ? 'TechCorp Solutions' :
+                               'Google';
+      }
+      return userObj;
+    } catch {
+      return null;
+    }
   },
 
   // Dashboard & Metrics

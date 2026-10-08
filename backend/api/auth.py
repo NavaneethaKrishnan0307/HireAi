@@ -40,12 +40,13 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
     return False
 
-def create_access_token(user_id: str, email: str, role: str, full_name: str) -> str:
+def create_access_token(user_id: str, email: str, role: str, full_name: str, company_name: Optional[str] = None) -> str:
     payload = {
         "sub": str(user_id),
         "email": email,
         "role": role,
         "full_name": full_name,
+        "company_name": company_name,
         "exp": int(time.time()) + (settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
     }
     return jwt.encode(payload, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM)
@@ -273,8 +274,25 @@ def login(req: LoginRequest):
             hr_res = supabase.table("hr_users").select("*").eq("user_id", user["id"]).execute()
             if hr_res.data and len(hr_res.data) > 0:
                 role_profile = hr_res.data[0]
+            else:
+                clean_email = str(user.get("email") or "").lower()
+                comp_default = "Google" if "ghr@" in clean_email or "google" in clean_email else \
+                               "AZENTURE" if "azhr@" in clean_email or "azenture" in clean_email else \
+                               "TechCorp Solutions"
+                role_profile = {"user_id": user["id"], "company_name": comp_default, "department": "Talent Acquisition"}
 
-        token = create_access_token(user["id"], user["email"], user["role"], user["full_name"])
+        comp_name = role_profile.get("company_name") if role_profile else None
+        if not comp_name:
+            clean_email = str(user.get("email") or "").lower()
+            if "ghr@" in clean_email or "google" in clean_email: comp_name = "Google"
+            elif "azhr@" in clean_email or "azenture" in clean_email: comp_name = "AZENTURE"
+            else: comp_name = "TechCorp Solutions"
+        elif str(comp_name).lower() == "google":
+            comp_name = "Google"
+        elif str(comp_name).lower() == "azenture":
+            comp_name = "AZENTURE"
+
+        token = create_access_token(user["id"], user["email"], user["role"], user["full_name"], company_name=comp_name)
 
         return {
             "token": token,
@@ -284,7 +302,7 @@ def login(req: LoginRequest):
                 "role": user["role"],
                 "full_name": user["full_name"],
                 "avatar_url": user.get("avatar_url"),
-                "company_name": role_profile.get("company_name", "TechCorp Solutions") if role_profile and user.get("role") == "hr" else None
+                "company_name": comp_name
             },
             "role_profile": role_profile
         }
