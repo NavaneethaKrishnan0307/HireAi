@@ -16,7 +16,8 @@ import {
   Clock, 
   Award,
   RefreshCw,
-  Calendar
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
 import InterviewQuestionsModal from '../components/InterviewQuestionsModal';
 import ProofTraceModal from '../components/ProofTraceModal';
@@ -37,6 +38,8 @@ export default function KanbanPipelinePage() {
   const [jobs, setJobs] = useState([]);
   const [selectedJobId, setSelectedJobId] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [toastMessage, setToastMessage] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   
   // Blind Screening Mode State
@@ -49,12 +52,23 @@ export default function KanbanPipelinePage() {
   const [activeScheduleCandidate, setActiveScheduleCandidate] = useState(null);
 
   useEffect(() => {
-    loadPipeline();
+    loadPipeline(!pipelineData);
   }, [selectedJobId]);
 
-  const loadPipeline = async () => {
+  const showToast = (message, type = 'success') => {
+    setToastMessage({ message, type });
+    setTimeout(() => {
+      setToastMessage(null);
+    }, 3500);
+  };
+
+  const loadPipeline = async (showLoadingSpinner = false) => {
     try {
-      setLoading(true);
+      if (showLoadingSpinner || !pipelineData) {
+        setLoading(true);
+      } else {
+        setIsSyncing(true);
+      }
       const data = await HRAPI.getPipeline(selectedJobId || null);
       setPipelineData(data.pipeline_stages || {});
       setJobs(data.jobs || []);
@@ -62,6 +76,7 @@ export default function KanbanPipelinePage() {
       console.error('Failed to load pipeline:', err);
     } finally {
       setLoading(false);
+      setIsSyncing(false);
     }
   };
 
@@ -71,6 +86,20 @@ export default function KanbanPipelinePage() {
       return;
     }
 
+    const prevData = pipelineData;
+    const currentStage = appItem.stage || appItem.status || 'applied';
+    const movedItem = { ...appItem, stage: targetStage, status: targetStage };
+
+    // 1. Optimistic instant local update
+    setPipelineData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        [currentStage]: (prev[currentStage] || []).filter(c => c.application_id !== appItem.application_id),
+        [targetStage]: [movedItem, ...(prev[targetStage] || []).filter(c => c.application_id !== appItem.application_id)]
+      };
+    });
+
     try {
       await HRAPI.movePipelineStage({
         applicationId: appItem.application_id,
@@ -78,15 +107,37 @@ export default function KanbanPipelinePage() {
         jobId: appItem.job_id,
         targetStage
       });
-      await loadPipeline();
+      showToast(`Moved ${appItem.candidate?.full_name || 'Candidate'} to ${targetStage.replace('_', ' ')}`);
+      // Silent background sync
+      loadPipeline(false);
     } catch (err) {
-      alert(err.message || 'Failed to move candidate stage');
+      setPipelineData(prevData);
+      showToast(err.message || 'Failed to move candidate stage', 'error');
     }
   };
 
   const handleSaveStageDetails = async ({ targetStage, stageDetails }) => {
     if (!activeScheduleCandidate?.candidate) return;
     const item = activeScheduleCandidate.candidate;
+    const prevData = pipelineData;
+    const currentStage = item.stage || item.status || 'applied';
+    const updatedItem = {
+      ...item,
+      stage: targetStage,
+      status: targetStage,
+      stage_details: { ...(item.stage_details || {}), ...(stageDetails || {}) }
+    };
+
+    // 1. Optimistic instant local update
+    setPipelineData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        [currentStage]: (prev[currentStage] || []).filter(c => c.application_id !== item.application_id),
+        [targetStage]: [updatedItem, ...(prev[targetStage] || []).filter(c => c.application_id !== item.application_id)]
+      };
+    });
+
     try {
       if (item.application_id) {
         try {
@@ -111,10 +162,12 @@ export default function KanbanPipelinePage() {
           stageDetails
         });
       }
-      await loadPipeline();
-      alert(`Stage details successfully saved for ${item.candidate?.full_name || 'Candidate'}!`);
+      showToast(`Stage details saved for ${item.candidate?.full_name || 'Candidate'}!`);
+      // Silent background sync
+      loadPipeline(false);
     } catch (err) {
-      alert(err.message || 'Failed to save stage details');
+      setPipelineData(prevData);
+      showToast(err.message || 'Failed to save stage details', 'error');
     }
   };
 
@@ -180,7 +233,7 @@ export default function KanbanPipelinePage() {
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#f0fdf4', color: '#16a34a', padding: '4px 10px', borderRadius: '12px', fontSize: '11px', fontWeight: '800', marginBottom: '6px' }}>
             <Sparkles size={13} /> Pure Classical FOAI Recruitment Pipeline
           </div>
-          <h2 className="hr-page-title" style={{ margin: 0, fontSize: '24px' }}>Recruitment Kanban Pipeline</h2>
+          <h2 className="hr-page-title" style={{ margin: 0, fontSize: '24px' }}>Recruitment Pipeline</h2>
           <p className="hr-page-subtitle" style={{ margin: '4px 0 0 0' }}>
             Deterministic state-transition hiring board with bias-free Blind Screening & Explainable AI.
           </p>
@@ -188,6 +241,12 @@ export default function KanbanPipelinePage() {
 
         {/* Controls: Blind Mode Toggle & Job Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+          {isSyncing && (
+            <span style={{ fontSize: '12px', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#f1f5f9', padding: '6px 12px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <RefreshCw size={12} color="#3b82f6" style={{ animation: 'spin 1.5s linear infinite' }} /> Syncing...
+            </span>
+          )}
+
           {/* Blind Screening Toggle */}
           <button
             type="button"
@@ -229,7 +288,7 @@ export default function KanbanPipelinePage() {
 
           <button
             type="button"
-            onClick={loadPipeline}
+            onClick={() => loadPipeline(false)}
             style={{
               background: '#ffffff',
               border: '1px solid #cbd5e1',
@@ -265,7 +324,7 @@ export default function KanbanPipelinePage() {
       )}
 
       {/* Kanban Board Container */}
-      {loading ? (
+      {loading && !pipelineData ? (
         <div style={{ textAlign: 'center', padding: '60px 0' }}>
           <RefreshCw size={32} color="#2563eb" style={{ animation: 'spin 1.5s linear infinite', margin: '0 auto 12px auto' }} />
           <p style={{ color: '#64748b', fontSize: '14px' }}>Loading pipeline stages and match scores...</p>
@@ -791,6 +850,30 @@ export default function KanbanPipelinePage() {
           onClose={() => setActiveScheduleCandidate(null)}
           onSave={handleSaveStageDetails}
         />
+      )}
+
+      {/* Floating Modern Toast Notification */}
+      {toastMessage && (
+        <div style={{
+          position: 'fixed',
+          bottom: '28px',
+          right: '32px',
+          zIndex: 99999,
+          backgroundColor: toastMessage.type === 'error' ? '#ef4444' : '#0f172a',
+          color: '#ffffff',
+          padding: '12px 20px',
+          borderRadius: '10px',
+          boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          fontSize: '13px',
+          fontWeight: '600',
+          transition: 'all 0.3s ease'
+        }}>
+          {toastMessage.type === 'error' ? <AlertCircle size={18} color="#fca5a5" /> : <CheckCircle2 size={18} color="#34d399" />}
+          <span>{toastMessage.message}</span>
+        </div>
       )}
     </div>
   );

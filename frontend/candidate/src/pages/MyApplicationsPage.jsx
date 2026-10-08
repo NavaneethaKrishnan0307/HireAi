@@ -25,12 +25,19 @@ export default function MyApplicationsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadApplications();
+    loadApplications(true);
+    // Real-time auto-polling every 6 seconds so HR pipeline updates appear seamlessly
+    const interval = setInterval(() => {
+      loadApplications(false);
+    }, 6000);
+    return () => clearInterval(interval);
   }, []);
 
-  const loadApplications = async () => {
+  const loadApplications = async (showLoadingSpinner = false) => {
     try {
-      setLoading(true);
+      if (showLoadingSpinner && applications.length === 0) {
+        setLoading(true);
+      }
       const data = await CandidateAPI.getMyApplications();
       setApplications(data || []);
     } catch (err) {
@@ -121,7 +128,7 @@ export default function MyApplicationsPage() {
         </p>
       </div>
 
-      {loading ? (
+      {loading && applications.length === 0 ? (
         <div className="card" style={{ padding: '30px', textAlign: 'center', color: '#64748b' }}>
           <p>Loading your application statuses and schedules...</p>
         </div>
@@ -144,7 +151,16 @@ export default function MyApplicationsPage() {
             const offerDetails = stageDetails.offer_extended || {};
 
             return (
-              <div key={app.id} className="card" style={{ padding: '24px', border: currentStageNum === 5 ? '2px solid #10b981' : currentStageNum === 4 ? '2px solid #f59e0b' : currentStageNum === 3 ? '2px solid #06b6d4' : '1px solid #e2e8f0' }}>
+              <div 
+                key={app.id} 
+                className="card" 
+                style={{ 
+                  padding: '24px', 
+                  border: currentStageNum === 5 ? '2px solid #10b981' : currentStageNum === 4 ? '2px solid #f59e0b' : currentStageNum === 3 ? '2px solid #06b6d4' : '1px solid #e2e8f0',
+                  transition: 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: currentStageNum === 5 ? '0 10px 25px -5px rgba(16, 185, 129, 0.12)' : '0 1px 3px rgba(0,0,0,0.03)'
+                }}
+              >
                 {/* Header: Role, Company & Status */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
                   <div>
