@@ -16,14 +16,20 @@ import {
   FileText, 
   User,
   TrendingUp,
-  ShieldCheck
+  ShieldCheck,
+  Eye,
+  Printer
 } from 'lucide-react';
 import { HRAPI } from '../services/api';
+import ReportPreviewModal from './ReportPreviewModal';
+import { exportReportToPdf } from '../utils/pdfExport';
 
 export default function ResumeReportModal({ candidateId, candidateName, onClose }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showDocPreview, setShowDocPreview] = useState(false);
+  const [downloadingDirect, setDownloadingDirect] = useState(false);
 
   useEffect(() => {
     if (candidateId) {
@@ -41,6 +47,18 @@ export default function ResumeReportModal({ candidateId, candidateName, onClose 
       setError(err.message || 'Failed to load report');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDirectDownload = async () => {
+    try {
+      setDownloadingDirect(true);
+      await exportReportToPdf('hr-analyzer-report-printable', report?.candidate_name || candidateName || 'Candidate');
+    } catch (err) {
+      console.error('Direct PDF export error:', err);
+      alert('Failed to generate PDF download: ' + (err.message || 'unknown error'));
+    } finally {
+      setDownloadingDirect(false);
     }
   };
 
@@ -209,9 +227,32 @@ export default function ResumeReportModal({ candidateId, candidateName, onClose 
             </h3>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
             <button 
-              onClick={handleExport}
+              type="button"
+              onClick={handleDirectDownload}
+              disabled={loading || !report || downloadingDirect}
+              style={{ 
+                backgroundColor: '#16a34a', 
+                color: '#ffffff', 
+                border: 'none', 
+                padding: '8px 14px', 
+                borderRadius: '8px', 
+                cursor: downloadingDirect ? 'not-allowed' : 'pointer', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                fontSize: '12px', 
+                fontWeight: '700' 
+              }}
+              title="Download PDF directly to your device"
+            >
+              <Download size={14} /> {downloadingDirect ? 'Generating...' : 'Download PDF'}
+            </button>
+
+            <button 
+              type="button"
+              onClick={() => setShowDocPreview(true)}
               disabled={loading || !report}
               style={{ 
                 backgroundColor: '#0f172a', 
@@ -226,10 +267,33 @@ export default function ResumeReportModal({ candidateId, candidateName, onClose 
                 fontSize: '12px', 
                 fontWeight: '700' 
               }}
-              title="Export Clean PDF Report"
+              title="Preview report document and download"
             >
-              <Download size={14} /> Export Report
+              <Eye size={14} /> Preview & Download
             </button>
+
+            <button 
+              type="button"
+              onClick={handleExport}
+              disabled={loading || !report}
+              style={{ 
+                backgroundColor: '#f1f5f9', 
+                color: '#334155', 
+                border: '1px solid #cbd5e1', 
+                padding: '8px 12px', 
+                borderRadius: '8px', 
+                cursor: 'pointer', 
+                display: 'inline-flex', 
+                alignItems: 'center', 
+                gap: '6px', 
+                fontSize: '12px', 
+                fontWeight: '600' 
+              }}
+              title="Print document"
+            >
+              <Printer size={14} /> Print
+            </button>
+
             <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8' }}>
               <X size={22} />
             </button>
@@ -718,6 +782,13 @@ export default function ResumeReportModal({ candidateId, candidateName, onClose 
           </div>
         )}
       </div>
+
+      <ReportPreviewModal
+        isOpen={showDocPreview}
+        onClose={() => setShowDocPreview(false)}
+        report={report}
+        candidateName={report?.candidate_name || candidateName}
+      />
     </div>
   );
 }

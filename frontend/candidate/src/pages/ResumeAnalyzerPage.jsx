@@ -19,9 +19,12 @@ import {
   X,
   TrendingUp,
   ShieldCheck,
-  User
+  User,
+  Eye
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
+import ReportPreviewModal from '../components/ReportPreviewModal';
+import { exportReportToPdf } from '../utils/pdfExport';
 
   const getUserReportKey = () => {
     try {
@@ -48,6 +51,8 @@ export default function ResumeAnalyzerPage() {
   const [error, setError] = useState(null);
   const [syncingName, setSyncingName] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [downloadingDirect, setDownloadingDirect] = useState(false);
 
   useEffect(() => {
     loadReport();
@@ -71,6 +76,18 @@ export default function ResumeAnalyzerPage() {
       setError(err.message || 'Please upload your resume to generate your personalized report.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDirectDownload = async () => {
+    try {
+      setDownloadingDirect(true);
+      await exportReportToPdf('analyzer-report-content', report?.candidate_name || 'Candidate');
+    } catch (err) {
+      console.error('Direct download error:', err);
+      alert('Failed to generate PDF download: ' + (err.message || 'unknown error'));
+    } finally {
+      setDownloadingDirect(false);
     }
   };
 
@@ -293,13 +310,26 @@ export default function ResumeAnalyzerPage() {
           >
             <User size={16} /> Modify Profile
           </Link>
+
           <button 
-            onClick={handleExport}
+            type="button"
+            onClick={handleDirectDownload}
+            disabled={downloadingDirect}
+            className="choose-btn" 
+            style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#16a34a' }}
+            title="Download PDF directly to your device"
+          >
+            <Download size={16} /> {downloadingDirect ? 'Generating...' : 'Download PDF'}
+          </button>
+
+          <button 
+            type="button"
+            onClick={() => setShowPreview(true)}
             className="choose-btn" 
             style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#0f172a' }}
-            title="Export Comprehensive Career Report as Clean PDF"
+            title="Preview report document and download"
           >
-            <Download size={16} /> Export Report
+            <Eye size={16} /> Preview & Download
           </button>
         </div>
       </div>
@@ -790,6 +820,13 @@ export default function ResumeAnalyzerPage() {
         )}
       </div>
     </div>
+
+    <ReportPreviewModal
+      isOpen={showPreview}
+      onClose={() => setShowPreview(false)}
+      report={report}
+      candidateName={report?.candidate_name}
+    />
   </div>
 );
 }
