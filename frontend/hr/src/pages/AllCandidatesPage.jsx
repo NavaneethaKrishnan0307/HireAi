@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Folder, User, Mail, MapPin, Briefcase, GraduationCap, CheckCircle2, FolderOpen } from 'lucide-react';
+import { Search, Folder, User, Mail, MapPin, Briefcase, GraduationCap, CheckCircle2, FolderOpen, Sparkles } from 'lucide-react';
 import { HRAPI } from '../services/api';
 import MatchModal from '../components/MatchModal';
 import CandidateUploadsModal from '../components/CandidateUploadsModal';
+import ResumeReportModal from '../components/ResumeReportModal';
 
 export default function AllCandidatesPage() {
   const [candidates, setCandidates] = useState([]);
@@ -10,6 +11,7 @@ export default function AllCandidatesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [activeUploadsCandidate, setActiveUploadsCandidate] = useState(null);
+  const [activeReportCandidate, setActiveReportCandidate] = useState(null);
 
   useEffect(() => {
     loadCandidates();
@@ -118,6 +120,26 @@ export default function AllCandidatesPage() {
                     alignItems: 'center', 
                     gap: '6px', 
                     padding: '10px 14px', 
+                    backgroundColor: '#f5f3ff', 
+                    color: '#7c3aed', 
+                    border: '1px solid #ddd6fe', 
+                    borderRadius: '8px', 
+                    fontWeight: '700', 
+                    fontSize: '12px', 
+                    cursor: 'pointer' 
+                  }}
+                  onClick={() => setActiveReportCandidate(cand)}
+                  title="View Full Complete AI Resume Audit & Fit Report"
+                >
+                  <Sparkles size={14} /> AI Report
+                </button>
+                <button 
+                  type="button" 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    padding: '10px 14px', 
                     backgroundColor: '#f0f9ff', 
                     color: '#0284c7', 
                     border: '1px solid #bae6fd', 
@@ -149,6 +171,14 @@ export default function AllCandidatesPage() {
           candidateId={activeUploadsCandidate.id || activeUploadsCandidate.user_id}
           candidateName={activeUploadsCandidate.full_name}
           onClose={() => setActiveUploadsCandidate(null)}
+        />
+      )}
+
+      {activeReportCandidate && (
+        <ResumeReportModal
+          candidateId={activeReportCandidate.id || activeReportCandidate.user_id}
+          candidateName={activeReportCandidate.full_name}
+          onClose={() => setActiveReportCandidate(null)}
         />
       )}
     </div>

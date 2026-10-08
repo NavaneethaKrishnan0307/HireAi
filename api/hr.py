@@ -733,6 +733,7 @@ def update_candidate_status_by_id(
 def get_hr_candidate_report(candidate_id: str, user: Dict[str, Any] = Depends(require_hr)):
     """
     Generate deep AI resume audit report and multi-company platform fit matrix for HR.
+    Prioritizes active opportunities from the requesting HR's company.
     """
     supabase = get_supabase()
     cand_res = supabase.table("candidates").select("*").eq("id", candidate_id).execute()
@@ -740,6 +741,17 @@ def get_hr_candidate_report(candidate_id: str, user: Dict[str, Any] = Depends(re
         # Check by user_id
         cand_res = supabase.table("candidates").select("*").eq("user_id", candidate_id).execute()
     
+    if not cand_res.data:
+        # Fallback to users table in case candidate profile is minimal
+        u_res = supabase.table("users").select("*").eq("id", candidate_id).execute()
+        if u_res.data and u_res.data[0].get("role") == "candidate":
+            cand_res.data = [{
+                "id": candidate_id, 
+                "user_id": candidate_id, 
+                "full_name": u_res.data[0].get("full_name", "Candidate"),
+                "email": u_res.data[0].get("email", "")
+            }]
+
     if not cand_res.data:
         raise HTTPException(status_code=404, detail="Candidate profile not found")
     
@@ -752,6 +764,20 @@ def get_hr_candidate_report(candidate_id: str, user: Dict[str, Any] = Depends(re
     active_jobs = jobs_res.data or []
 
     report = CandidateRanker.generate_resume_audit_report(enriched, active_jobs)
+
+    # Determine respective HR company and highlight/prioritize its postings in the job fit matrix
+    hr_company = _get_hr_company(user, supabase)
+    report["hr_company"] = hr_company
+    if "job_matrix" in report and isinstance(report["job_matrix"], list):
+        for j in report["job_matrix"]:
+            if hr_company and str(j.get("company", "")).strip().lower() == str(hr_company).strip().lower():
+                j["is_current_hr_company"] = True
+            else:
+                j["is_current_hr_company"] = False
+        
+        # Sort so current HR company's jobs appear at the top, then by match score
+        report["job_matrix"].sort(key=lambda x: (not x.get("is_current_hr_company", False), -x.get("match_score", 0)))
+
     return report
 
 
