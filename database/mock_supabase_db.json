@@ -635,6 +635,71 @@
       "stage_details": {}
     }
   ],
-  "candidate_documents": [],
+  "candidate_documents": [
+    {
+      "id": "doc-cert-rahul-01",
+      "user_id": "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22",
+      "candidate_id": "11111111-1111-1111-1111-111111111111",
+      "document_type": "certification",
+      "title": "AWS Certified Solutions Architect - Associate",
+      "issuer_or_referee": "Amazon Web Services (AWS)",
+      "issue_date": "2024-05-15",
+      "file_name": "AWS_Solutions_Architect_Certificate.pdf",
+      "stored_filename": "aws_certified_solutions_architect.pdf",
+      "file_url": "/uploads/candidate_documents/certifications/aws_certified_solutions_architect.pdf",
+      "file_size": "118.4 KB",
+      "mime_type": "application/pdf",
+      "verified": true,
+      "created_at": "2024-05-15T10:00:00Z"
+    },
+    {
+      "id": "doc-cert-rahul-02",
+      "user_id": "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22",
+      "candidate_id": "11111111-1111-1111-1111-111111111111",
+      "document_type": "certification",
+      "title": "Certified Kubernetes Application Developer (CKAD)",
+      "issuer_or_referee": "Cloud Native Computing Foundation (CNCF)",
+      "issue_date": "2023-11-20",
+      "file_name": "CKAD_Certificate.pdf",
+      "stored_filename": "ckad_certified_developer.pdf",
+      "file_url": "/uploads/candidate_documents/certifications/ckad_certified_developer.pdf",
+      "file_size": "118.4 KB",
+      "mime_type": "application/pdf",
+      "verified": true,
+      "created_at": "2023-11-20T14:30:00Z"
+    },
+    {
+      "id": "doc-ref-rahul-01",
+      "user_id": "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22",
+      "candidate_id": "11111111-1111-1111-1111-111111111111",
+      "document_type": "referral",
+      "title": "Recommendation Letter - Principal Staff Engineer",
+      "issuer_or_referee": "David Kim (Principal Engineer, Google)",
+      "issue_date": "2024-01-10",
+      "file_name": "David_Kim_Recommendation_Letter.pdf",
+      "stored_filename": "google_staff_engineer_recommendation.pdf",
+      "file_url": "/uploads/candidate_documents/referrals/google_staff_engineer_recommendation.pdf",
+      "file_size": "118.4 KB",
+      "mime_type": "application/pdf",
+      "verified": true,
+      "created_at": "2024-01-10T09:15:00Z"
+    },
+    {
+      "id": "doc-ref-rahul-02",
+      "user_id": "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22",
+      "candidate_id": "11111111-1111-1111-1111-111111111111",
+      "document_type": "referral",
+      "title": "Engineering Manager Performance Endorsement",
+      "issuer_or_referee": "Ananya Roy (Engineering Director, TechCorp)",
+      "issue_date": "2023-08-30",
+      "file_name": "Ananya_Roy_Endorsement.pdf",
+      "stored_filename": "engineering_manager_endorsement.pdf",
+      "file_url": "/uploads/candidate_documents/referrals/engineering_manager_endorsement.pdf",
+      "file_size": "118.4 KB",
+      "mime_type": "application/pdf",
+      "verified": true,
+      "created_at": "2023-08-30T16:00:00Z"
+    }
+  ],
   "matching_results": []
 }

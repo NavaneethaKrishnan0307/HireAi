@@ -244,6 +244,30 @@ export const HRAPI = {
     return res.json();
   },
 
+  async getCandidateUploads(candidateId) {
+    const res = await fetch(`${API_BASE}/api/hr/candidates/${candidateId}/uploads`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to load candidate uploads and documents');
+    return res.json();
+  },
+
+  async getCandidateResumeBlob(candidateId) {
+    const res = await fetch(`${API_BASE}/api/hr/candidates/${candidateId}/resume/file`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch candidate resume file');
+    return res.blob();
+  },
+
+  async getCandidateDocumentBlob(candidateId, docId) {
+    const res = await fetch(`${API_BASE}/api/hr/candidates/${candidateId}/documents/${docId}/file`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch candidate document file');
+    return res.blob();
+  },
+
   async updateApplicationStatus(applicationId, status) {
     const res = await fetch(`${API_BASE}/api/hr/applications/${applicationId}/status`, {
       method: 'POST',

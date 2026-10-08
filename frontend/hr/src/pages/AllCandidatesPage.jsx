@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Folder, User, Mail, MapPin, Briefcase, GraduationCap, CheckCircle2 } from 'lucide-react';
+import { Search, Folder, User, Mail, MapPin, Briefcase, GraduationCap, CheckCircle2, FolderOpen } from 'lucide-react';
 import { HRAPI } from '../services/api';
 import MatchModal from '../components/MatchModal';
+import CandidateUploadsModal from '../components/CandidateUploadsModal';
 
 export default function AllCandidatesPage() {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCandidate, setSelectedCandidate] = useState(null);
+  const [activeUploadsCandidate, setActiveUploadsCandidate] = useState(null);
 
   useEffect(() => {
     loadCandidates();
@@ -100,14 +102,36 @@ export default function AllCandidatesPage() {
                 </div>
               </div>
 
-              <button 
-                type="button" 
-                className="view-all-outline-btn" 
-                style={{ width: '100%', marginTop: '20px', padding: '10px' }}
-                onClick={() => setSelectedCandidate(cand)}
-              >
-                Evaluate Candidate Profile
-              </button>
+              <div style={{ display: 'flex', gap: '8px', marginTop: '20px' }}>
+                <button 
+                  type="button" 
+                  className="view-all-outline-btn" 
+                  style={{ flex: 1, padding: '10px' }}
+                  onClick={() => setSelectedCandidate(cand)}
+                >
+                  Evaluate Profile
+                </button>
+                <button 
+                  type="button" 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '6px', 
+                    padding: '10px 14px', 
+                    backgroundColor: '#f0f9ff', 
+                    color: '#0284c7', 
+                    border: '1px solid #bae6fd', 
+                    borderRadius: '8px', 
+                    fontWeight: '700', 
+                    fontSize: '12px', 
+                    cursor: 'pointer' 
+                  }}
+                  onClick={() => setActiveUploadsCandidate(cand)}
+                  title="View Candidate Uploaded Resume, Certifications & Documents"
+                >
+                  <FolderOpen size={14} /> Docs
+                </button>
+              </div>
             </div>
           ))}
         </div>
@@ -117,6 +141,14 @@ export default function AllCandidatesPage() {
         <MatchModal 
           candidate={selectedCandidate} 
           onClose={() => setSelectedCandidate(null)} 
+        />
+      )}
+
+      {activeUploadsCandidate && (
+        <CandidateUploadsModal
+          candidateId={activeUploadsCandidate.id || activeUploadsCandidate.user_id}
+          candidateName={activeUploadsCandidate.full_name}
+          onClose={() => setActiveUploadsCandidate(null)}
         />
       )}
     </div>

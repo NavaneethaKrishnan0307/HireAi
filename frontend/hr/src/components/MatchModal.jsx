@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { X, CheckCircle, XCircle, Sparkles, Award, GraduationCap, Clock, FileText, User, Lightbulb, HelpCircle, ShieldCheck } from 'lucide-react';
+import { X, CheckCircle, XCircle, Sparkles, Award, GraduationCap, Clock, FileText, User, Lightbulb, HelpCircle, ShieldCheck, FolderOpen } from 'lucide-react';
 import { HRAPI } from '../services/api';
 import ResumeReportModal from './ResumeReportModal';
 import InterviewQuestionsModal from './InterviewQuestionsModal';
 import ProofTraceModal from './ProofTraceModal';
+import CandidateUploadsModal from './CandidateUploadsModal';
 
 export default function MatchModal({ candidate, jobId, onClose, onStatusChange }) {
   const [showReport, setShowReport] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
   const [showProofTrace, setShowProofTrace] = useState(false);
+  const [showUploads, setShowUploads] = useState(false);
 
   if (!candidate) return null;
 
@@ -222,25 +224,47 @@ export default function MatchModal({ candidate, jobId, onClose, onStatusChange }
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', paddingTop: '16px', borderTop: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => setShowReport(true)}
-            style={{
-              backgroundColor: '#f1f5f9',
-              color: '#0f172a',
-              border: '1px solid #cbd5e1',
-              padding: '10px 16px',
-              borderRadius: '8px',
-              fontWeight: '700',
-              fontSize: '13px',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            <Sparkles size={15} color="#2563eb" /> View Full AI Resume Report
-          </button>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setShowUploads(true)}
+              style={{
+                backgroundColor: '#f0f9ff',
+                color: '#0369a1',
+                border: '1px solid #bae6fd',
+                padding: '10px 16px',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <FolderOpen size={15} color="#0284c7" /> Candidate Uploads & Docs
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setShowReport(true)}
+              style={{
+                backgroundColor: '#f1f5f9',
+                color: '#0f172a',
+                border: '1px solid #cbd5e1',
+                padding: '10px 16px',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '13px',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+            >
+              <Sparkles size={15} color="#2563eb" /> AI Resume Report
+            </button>
+          </div>
 
           <div style={{ display: 'flex', gap: '10px' }}>
             <button 
@@ -271,6 +295,14 @@ export default function MatchModal({ candidate, jobId, onClose, onStatusChange }
           </div>
         </div>
       </div>
+
+      {showUploads && (
+        <CandidateUploadsModal
+          candidateId={candidate.id || candidate.user_id}
+          candidateName={candidate.full_name}
+          onClose={() => setShowUploads(false)}
+        />
+      )}
 
       {showReport && (
         <ResumeReportModal 

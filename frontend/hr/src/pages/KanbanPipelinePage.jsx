@@ -17,12 +17,14 @@ import {
   Award,
   RefreshCw,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  FolderOpen
 } from 'lucide-react';
 import InterviewQuestionsModal from '../components/InterviewQuestionsModal';
 import ProofTraceModal from '../components/ProofTraceModal';
 import ResumeReportModal from '../components/ResumeReportModal';
 import ScheduleStageModal from '../components/ScheduleStageModal';
+import CandidateUploadsModal from '../components/CandidateUploadsModal';
 
 const STAGE_CONFIG = [
   { id: 'applied', label: 'Screened & Applied', icon: '📥', color: '#3b82f6', bg: '#eff6ff' },
@@ -50,6 +52,7 @@ export default function KanbanPipelinePage() {
   const [activeProofTraceCandidate, setActiveProofTraceCandidate] = useState(null);
   const [activeReportCandidate, setActiveReportCandidate] = useState(null);
   const [activeScheduleCandidate, setActiveScheduleCandidate] = useState(null);
+  const [activeUploadsCandidate, setActiveUploadsCandidate] = useState(null);
 
   useEffect(() => {
     loadPipeline(!pipelineData);
@@ -452,6 +455,29 @@ export default function KanbanPipelinePage() {
                           <div style={{ display: 'flex', gap: '4px', marginTop: '4px', paddingTop: '6px', borderTop: '1px solid #f1f5f9' }}>
                             <button
                               type="button"
+                              onClick={() => setActiveUploadsCandidate(cand)}
+                              style={{
+                                flex: 1,
+                                background: '#f8fafc',
+                                color: '#0f172a',
+                                border: '1px solid #cbd5e1',
+                                borderRadius: '4px',
+                                padding: '4px 0',
+                                fontSize: '10px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '3px'
+                              }}
+                              title="Candidate Uploads, Resume & Documents"
+                            >
+                              <FolderOpen size={11} color="#0284c7" /> Docs
+                            </button>
+
+                            <button
+                              type="button"
                               onClick={() => setActiveQuestionsCandidate({
                                 ...cand,
                                 interview_questions: item.interview_questions || item.match_details?.interview_questions || []
@@ -499,7 +525,7 @@ export default function KanbanPipelinePage() {
                               }}
                               title="Decision Proof Tree"
                             >
-                              <Sparkles size={11} /> Proof Tree
+                              <Sparkles size={11} /> Proof
                             </button>
                           </div>
 
@@ -849,6 +875,14 @@ export default function KanbanPipelinePage() {
           initialStage={activeScheduleCandidate.stage}
           onClose={() => setActiveScheduleCandidate(null)}
           onSave={handleSaveStageDetails}
+        />
+      )}
+
+      {activeUploadsCandidate && (
+        <CandidateUploadsModal
+          candidateId={activeUploadsCandidate.id || activeUploadsCandidate.user_id}
+          candidateName={activeUploadsCandidate.full_name}
+          onClose={() => setActiveUploadsCandidate(null)}
         />
       )}
 

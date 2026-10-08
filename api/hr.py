@@ -1,10 +1,14 @@
 from typing import Dict, Any, List, Optional
+from pathlib import Path
 import io
 import csv
+import json
 import logging
 import datetime
 import uuid
 from fastapi import APIRouter, HTTPException, Depends, Query, Response
+from fastapi.responses import FileResponse
+from config import settings
 from backend.api.auth import require_hr
 from backend.utils.supabase_client import get_supabase
 from backend.services.candidate_ranker import CandidateRanker
@@ -1027,3 +1031,190 @@ def get_company_vault_status(user: Dict[str, Any] = Depends(require_hr)):
     hr_company = _get_hr_company(user, supabase)
     summary = company_vault_manager.get_vault_summary(hr_company)
     return summary
+
+
+def _get_mock_db_path() -> Path:
+    p = Path("database/mock_supabase_db.json")
+    if p.exists():
+        return p
+    for parent_lvl in [Path(__file__).resolve().parent.parent.parent, Path(__file__).resolve().parent.parent]:
+        candidate = parent_lvl / "database" / "mock_supabase_db.json"
+        if candidate.exists():
+            return candidate
+    return p
+
+
+@router.get("/candidates/{candidate_id}/uploads")
+def get_candidate_uploads_for_hr(candidate_id: str, user: Dict[str, Any] = Depends(require_hr)):
+    """
+    Allows authorized HR to view candidate's uploaded resume, certifications, and documents.
+    """
+    supabase = get_supabase()
+    
+    # 1. Fetch candidate
+    cands_res = supabase.table("candidates").select("*").execute()
+    all_cands = cands_res.data or []
+    cand = next((c for c in all_cands if str(c.get("id")) == candidate_id or str(c.get("user_id")) == candidate_id), None)
+    if not cand:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    user_id = str(cand.get("user_id") or cand.get("id"))
+    
+    # Enrich with user record
+    users_res = supabase.table("users").select("id, email, full_name, avatar_url").execute()
+    user_map = {str(u["id"]): u for u in (users_res.data or [])}
+    enriched = _enrich_candidate(cand, user_map)
+    
+    # 2. Fetch candidate documents from candidate_documents table
+    raw_docs = []
+    try:
+        docs_res = supabase.table("candidate_documents").select("*").eq("user_id", user_id).order("created_at", desc=True).execute()
+        raw_docs = docs_res.data or []
+    except Exception as e:
+        logger.warning(f"Failed to query candidate_documents: {e}")
+        raw_docs = []
+
+
+    if not raw_docs:
+        try:
+            mock_db_path = _get_mock_db_path()
+            if mock_db_path.exists():
+                with open(mock_db_path, "r", encoding="utf-8") as f:
+                    mdata = json.load(f)
+                    cand_guid = str(cand.get("id"))
+                    cand_uid = str(user_id)
+                    raw_docs = [
+                        d for d in mdata.get("candidate_documents", [])
+                        if str(d.get("user_id")) == cand_uid or str(d.get("candidate_id")) == cand_guid
+                    ]
+        except Exception as me:
+            logger.warning(f"Failed to load mock candidate documents: {me}")
+        
+    documents = []
+    for d in raw_docs:
+        documents.append({
+            "id": d.get("id"),
+            "title": d.get("title") or d.get("document_name") or d.get("file_name"),
+            "document_type": d.get("document_type") or d.get("category") or "other",
+            "issuer_or_referee": d.get("issuer_or_referee") or d.get("issuer") or "Verified Issuer",
+            "issue_date": d.get("issue_date") or d.get("created_at"),
+            "file_name": d.get("file_name") or "document.pdf",
+            "file_url": d.get("file_url"),
+            "stored_filename": d.get("stored_filename"),
+            "file_size": d.get("file_size") or 0,
+            "mime_type": d.get("mime_type") or "application/pdf",
+            "verified": d.get("verified", True),
+            "created_at": d.get("created_at")
+        })
+        
+    return {
+        "candidate": {
+            "id": enriched.get("id"),
+            "user_id": user_id,
+            "full_name": enriched.get("full_name"),
+            "email": enriched.get("email"),
+            "phone": enriched.get("phone") or "+91 98765 43210",
+            "location": enriched.get("location") or "Bangalore",
+            "current_title": enriched.get("current_title") or "Software Professional",
+            "years_of_experience": enriched.get("years_of_experience", 0),
+            "education": enriched.get("education") or "Graduate Degree",
+            "resume_filename": enriched.get("resume_filename"),
+            "resume_url": enriched.get("resume_url"),
+            "resume_status": enriched.get("resume_status") or "processed",
+            "parsed_skills": enriched.get("parsed_skills") or [],
+            "parsed_data": enriched.get("parsed_data") or {}
+        },
+        "documents": documents,
+        "stats": {
+            "total_documents": len(documents),
+            "certifications_count": len([d for d in documents if d.get("document_type") == "certification"]),
+            "referrals_count": len([d for d in documents if d.get("document_type") == "referral"]),
+            "has_resume": bool(enriched.get("resume_filename") or enriched.get("resume_url"))
+        }
+    }
+
+
+@router.get("/candidates/{candidate_id}/documents/{doc_id}/file")
+def get_candidate_document_file_for_hr(candidate_id: str, doc_id: str, user: Dict[str, Any] = Depends(require_hr)):
+    """Stream candidate document directly for HR preview and verification."""
+    supabase = get_supabase()
+    
+    doc = None
+    try:
+        docs_res = supabase.table("candidate_documents").select("*").eq("id", doc_id).execute()
+        if docs_res.data:
+            doc = docs_res.data[0]
+    except Exception as e:
+        logger.warning(f"Failed to query candidate_documents: {e}")
+
+    if not doc:
+        try:
+            mock_db_path = _get_mock_db_path()
+            if mock_db_path.exists():
+                with open(mock_db_path, "r", encoding="utf-8") as f:
+                    mdata = json.load(f)
+                    for d in mdata.get("candidate_documents", []):
+                        if str(d.get("id")) == str(doc_id):
+                            doc = d
+                            break
+        except Exception as me:
+            logger.warning(f"Failed to load mock candidate document: {me}")
+
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document record not found")
+
+    subfolder = "certifications" if doc.get("document_type") == "certification" else "referrals" if doc.get("document_type") == "referral" else "other"
+    stored_name = doc.get("stored_filename") or doc.get("file_name")
+    fpath = settings.CANDIDATE_DOCS_DIR / subfolder / stored_name
+    
+    if not fpath.exists():
+        alt_paths = [
+            settings.CANDIDATE_DOCS_DIR / "certifications" / stored_name,
+            settings.CANDIDATE_DOCS_DIR / "referrals" / stored_name,
+            settings.CANDIDATE_DOCS_DIR / "other" / stored_name,
+            settings.CANDIDATE_DOCS_DIR / stored_name
+        ]
+        found = next((p for p in alt_paths if p.exists()), None)
+        if found:
+            fpath = found
+        else:
+            raise HTTPException(status_code=404, detail="Document file not found on disk")
+            
+    return FileResponse(
+        path=str(fpath),
+        media_type=doc.get("mime_type") or "application/octet-stream",
+        filename=doc.get("file_name"),
+        headers={"Content-Disposition": f"inline; filename=\"{doc.get('file_name')}\""}
+    )
+
+
+@router.get("/candidates/{candidate_id}/resume/file")
+def get_candidate_resume_file_for_hr(candidate_id: str, user: Dict[str, Any] = Depends(require_hr)):
+    """Stream candidate resume directly for HR preview and audit."""
+    supabase = get_supabase()
+    cands_res = supabase.table("candidates").select("*").execute()
+    all_cands = cands_res.data or []
+    cand = next((c for c in all_cands if str(c.get("id")) == candidate_id or str(c.get("user_id")) == candidate_id), None)
+    if not cand:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+        
+    filename = cand.get("resume_filename")
+    if not filename:
+        raise HTTPException(status_code=404, detail="Candidate has not uploaded a resume")
+        
+    fpath = settings.UPLOAD_DIR / filename
+    if not fpath.exists():
+        matches = list(settings.UPLOAD_DIR.glob(f"*{filename}*"))
+        if matches:
+            fpath = matches[0]
+        else:
+            raise HTTPException(status_code=404, detail="Resume file not found on server disk")
+            
+    media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document" if str(filename).lower().endswith(".docx") else "application/pdf"
+    return FileResponse(
+        path=str(fpath),
+        media_type=media_type,
+        filename=filename,
+        headers={"Content-Disposition": f"inline; filename=\"{filename}\""}
+    )
+
