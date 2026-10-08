@@ -91,9 +91,12 @@ export const CandidateAPI = {
   },
 
   // Resume Upload
-  async uploadResume(file) {
+  async uploadResume(file, targetTitle = null) {
     const formData = new FormData();
     formData.append('file', file);
+    if (targetTitle && typeof targetTitle === 'string' && targetTitle.trim()) {
+      formData.append('target_title', targetTitle.trim());
+    }
 
     const res = await fetch(`${API_BASE}/api/candidate/resume`, {
       method: 'POST',

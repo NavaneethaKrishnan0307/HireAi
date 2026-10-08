@@ -127,16 +127,18 @@ export default function UploadResumePage() {
       setSavingDetails(true);
       setError(null);
       const finalPhone = candidatePhoneNum.trim() ? `${selectedCountryCode} ${candidatePhoneNum.trim()}` : '';
+      const currentCache = getCachedProfile() || {};
       const updatePayload = {
+        ...currentCache,
+        ...profile,
         full_name: candidateName.trim(),
         email: candidateEmail.trim().toLowerCase(),
         phone: finalPhone,
         current_title: candidateTitle.trim()
       };
 
-      // Instantly cache in localStorage so refresh never wipes typed inputs
-      const currentCache = getCachedProfile() || {};
-      localStorage.setItem(getUserProfileKey(), JSON.stringify({ ...currentCache, ...updatePayload }));
+      // Instantly cache in localStorage so refresh and profile navigation never wipe details
+      localStorage.setItem(getUserProfileKey(), JSON.stringify(updatePayload));
 
       await CandidateAPI.updateProfile(updatePayload);
       setDetailsSavedMsg('Profile details successfully saved and updated in system!');
@@ -162,9 +164,29 @@ export default function UploadResumePage() {
       setError(null);
       setUploadProgress('Uploading and verifying resume document structure with Explainable AI...');
       
-      const res = await CandidateAPI.uploadResume(file);
+      const res = await CandidateAPI.uploadResume(file, candidateTitle);
       const docVal = res?.parsed_info?.document_validation;
       const parsedName = res?.parsed_info?.name;
+      const parsedTitle = res?.parsed_info?.current_title;
+
+      // Immediately synchronize and hydrate profile cache
+      if (res?.profile) {
+        setProfile(res.profile);
+        localStorage.setItem(getUserProfileKey(), JSON.stringify(res.profile));
+        if (res.profile.full_name) setCandidateName(res.profile.full_name);
+        if (res.profile.email) setCandidateEmail(res.profile.email);
+        if (res.profile.phone) {
+          setCandidatePhone(res.profile.phone);
+          const parsed = parsePhoneNumber(res.profile.phone);
+          setSelectedCountryCode(parsed.dialCode);
+          setCandidatePhoneNum(parsed.number);
+        }
+        if (res.profile.current_title) {
+          setCandidateTitle(res.profile.current_title);
+        } else if (parsedTitle && !candidateTitle) {
+          setCandidateTitle(parsedTitle);
+        }
+      }
 
       if (docVal && !docVal.is_valid) {
         setError(`Authenticity Warning: ${docVal.reason || 'Document does not appear to have standard resume structure.'}`);
@@ -173,7 +195,7 @@ export default function UploadResumePage() {
       if (parsedName && parsedName !== 'Candidate Profile' && parsedName.toLowerCase() !== (candidateName || '').toLowerCase()) {
         setUploadProgress(`Resume parsed for "${parsedName}"! Click 'Save Details' or view report to verify your profile.`);
       } else {
-        setUploadProgress('Resume successfully parsed, validated and saved!');
+        setUploadProgress('Resume successfully parsed, validated and synchronized to your Profile!');
       }
 
       await loadProfile();

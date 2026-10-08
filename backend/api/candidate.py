@@ -43,6 +43,24 @@ def get_profile(user: Dict[str, Any] = Depends(require_candidate)):
         cand = res_insert.data[0] if res_insert.data else new_cand
     else:
         cand = cand_res.data[0]
+
+    # Ensure parsed_skills & education fallback from parsed_data or inferred from role if empty
+    import json
+    if not cand.get("parsed_skills") and cand.get("parsed_data"):
+        raw_pd = cand.get("parsed_data")
+        if isinstance(raw_pd, str):
+            try:
+                raw_pd = json.loads(raw_pd)
+            except Exception:
+                raw_pd = {}
+        if isinstance(raw_pd, dict):
+            cand["parsed_skills"] = raw_pd.get("skills", []) or []
+
+    if (not cand.get("parsed_skills") or len(cand.get("parsed_skills")) == 0) and cand.get("current_title"):
+        cand["parsed_skills"] = ResumeParser.infer_skills_from_role(cand.get("current_title"))
+
+    if not cand.get("education") and cand.get("current_title"):
+        cand["education"] = ResumeParser.infer_education_from_role(cand.get("current_title"))
     
     user_res = supabase.table("users").select("full_name, email").eq("id", user_id).execute()
     if user_res.data and len(user_res.data) > 0:
@@ -159,7 +177,11 @@ def update_profile(req: CandidateProfileUpdate, user: Dict[str, Any] = Depends(r
 
 
 @router.post("/resume")
-def upload_resume(file: UploadFile = File(...), user: Dict[str, Any] = Depends(require_candidate)):
+def upload_resume(
+    file: UploadFile = File(...),
+    target_title: Optional[str] = Form(None),
+    user: Dict[str, Any] = Depends(require_candidate)
+):
     supabase = get_supabase()
     user_id = user["sub"]
 
@@ -171,29 +193,79 @@ def upload_resume(file: UploadFile = File(...), user: Dict[str, Any] = Depends(r
     extracted_name = parsed_info.get("name") or "Candidate Profile"
     parsed_info["resume_name"] = extracted_name
 
-    # 3. Update or create candidate database record with cloud storage pointer
+    cand_check = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
+    existing_cand = cand_check.data[0] if (cand_check.data and len(cand_check.data) > 0) else {}
+
+    # 3. Full Auto-Fill & Synchronization: Determine all profile fields
+    effective_title = (
+        target_title.strip() if target_title and target_title.strip()
+        else existing_cand.get("current_title")
+        or (parsed_info.get("current_title") if parsed_info.get("current_title") and parsed_info.get("current_title") != "Software Developer" else None)
+        or existing_cand.get("current_title")
+        or parsed_info.get("current_title")
+        or "Software Engineer"
+    )
+
+    # Skills: extract from parsed_info, fallback to existing, or intelligent role-based inference
+    effective_skills = list(parsed_info.get("skills") or [])
+    if not effective_skills:
+        if existing_cand.get("parsed_skills") and len(existing_cand.get("parsed_skills")) > 0:
+            effective_skills = list(existing_cand.get("parsed_skills"))
+        else:
+            effective_skills = ResumeParser.infer_skills_from_role(effective_title)
+
+    # Education: extract from parsed_info, fallback to existing, or role-based inference
+    effective_education = (
+        parsed_info.get("education")
+        or existing_cand.get("education")
+        or ResumeParser.infer_education_from_role(effective_title)
+    )
+
+    # Experience: extract from parsed_info, fallback to existing
+    effective_exp = parsed_info.get("years_of_experience")
+    if effective_exp is None or (effective_exp <= 0.0 and existing_cand.get("years_of_experience")):
+        effective_exp = float(existing_cand.get("years_of_experience") or 0.0)
+
+    # Phone: extract or preserve
+    effective_phone = parsed_info.get("phone") or existing_cand.get("phone") or ""
+
+    # Location: extract or preserve
+    effective_location = parsed_info.get("location") or existing_cand.get("location") or ""
+
+    # Update parsed_info with finalized synchronized values
+    parsed_info["skills"] = effective_skills
+    parsed_info["current_title"] = effective_title
+    parsed_info["education"] = effective_education
+    parsed_info["years_of_experience"] = effective_exp
+    if effective_phone:
+        parsed_info["phone"] = effective_phone
+    if effective_location:
+        parsed_info["location"] = effective_location
+
     update_payload = {
         "resume_filename": original_name,
         "resume_url": cloud_resume_url,
         "resume_status": "processed",
-        "parsed_skills": parsed_info["skills"],
-        "education": parsed_info["education"] or "Graduate",
-        "years_of_experience": parsed_info["years_of_experience"],
+        "current_title": effective_title,
+        "parsed_skills": effective_skills,
+        "education": effective_education,
+        "years_of_experience": effective_exp,
         "parsed_data": parsed_info
     }
 
-    if parsed_info.get("phone"):
-        update_payload["phone"] = parsed_info["phone"]
+    if effective_phone:
+        update_payload["phone"] = effective_phone
+    if effective_location:
+        update_payload["location"] = effective_location
 
-    cand_check = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
-    if cand_check.data and len(cand_check.data) > 0:
+    if existing_cand:
         cand_res = supabase.table("candidates").update(update_payload).eq("user_id", user_id).execute()
-        saved_cand = cand_res.data[0] if cand_res.data else update_payload
+        saved_cand = cand_res.data[0] if cand_res.data else {**existing_cand, **update_payload}
     else:
         update_payload["user_id"] = user_id
         cand_res = supabase.table("candidates").insert(update_payload).execute()
         saved_cand = cand_res.data[0] if cand_res.data else update_payload
-    
+
     user_res = supabase.table("users").select("full_name, email").eq("id", user_id).execute()
     if user_res.data and len(user_res.data) > 0:
         saved_cand["full_name"] = user_res.data[0].get("full_name", "")

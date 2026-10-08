@@ -211,6 +211,63 @@ class ResumeParser:
         return "Software Developer"
 
     @classmethod
+    def extract_location(cls, text: str) -> Optional[str]:
+        """Extract candidate location from resume text."""
+        if not text:
+            return None
+        loc_patterns = [
+            (r"\b(Bangalore|Bengaluru)\b", "Bangalore, India"),
+            (r"\b(Chennai|Madras)\b", "Chennai, India"),
+            (r"\b(Hyderabad|Secunderabad)\b", "Hyderabad, India"),
+            (r"\b(Delhi|New Delhi|Delhi\s*/\s*NCR|Noida|Gurgaon|Gurugram)\b", "Delhi / NCR, India"),
+            (r"\b(Mumbai|Bombay)\b", "Mumbai, India"),
+            (r"\b(Pune)\b", "Pune, India"),
+            (r"\b(Kolkata|Calcutta)\b", "Kolkata, India"),
+            (r"\b(Kochi|Cochin|Trivandrum|Thiruvananthapuram)\b", "Kochi, India"),
+            (r"\b(San Francisco)\b", "San Francisco, United States"),
+            (r"\b(New York)\b", "New York, United States"),
+            (r"\b(London)\b", "London, United Kingdom"),
+            (r"\b(Singapore)\b", "Singapore, Singapore"),
+            (r"\b(Dubai)\b", "Dubai, United Arab Emirates")
+        ]
+        for pat, loc_name in loc_patterns:
+            if re.search(pat, text, re.IGNORECASE):
+                return loc_name
+        return None
+
+    @classmethod
+    def infer_skills_from_role(cls, role_or_title: str) -> List[str]:
+        """Intelligently infer relevant skills based on professional role or target title."""
+        if not role_or_title:
+            return ["Python", "SQL", "Git", "REST APIs", "Problem Solving"]
+        t = role_or_title.lower()
+        if any(k in t for k in ["cyber", "security", "infosec", "soc", "penetration", "ethical"]):
+            return ["Cybersecurity", "Network Security", "Linux", "Python", "Wireshark", "Firewall", "Vulnerability Assessment", "Git"]
+        if any(k in t for k in ["python", "backend", "django", "fastapi"]):
+            return ["Python", "FastAPI", "SQL", "PostgreSQL", "Docker", "Git", "REST APIs", "AWS"]
+        if any(k in t for k in ["react", "frontend", "front-end", "ui", "web"]):
+            return ["React", "JavaScript", "TypeScript", "HTML", "CSS", "TailwindCSS", "Git", "REST APIs"]
+        if any(k in t for k in ["cloud", "devops", "sre", "infrastructure", "platform", "kubernetes"]):
+            return ["AWS", "Docker", "Kubernetes", "Linux", "Terraform", "CI/CD", "Python", "Git"]
+        if any(k in t for k in ["data", "machine learning", "ai", "ml", "deep learning"]):
+            return ["Python", "Machine Learning", "SQL", "Pandas", "NumPy", "Docker", "Git"]
+        if any(k in t for k in ["java", "spring"]):
+            return ["Java", "Spring Boot", "SQL", "Microservices", "Docker", "Git", "REST APIs"]
+        if any(k in t for k in ["full stack", "fullstack"]):
+            return ["React", "Node.js", "Python", "SQL", "JavaScript", "Docker", "Git", "REST APIs"]
+        return ["Python", "SQL", "Git", "REST APIs", "Problem Solving"]
+
+    @classmethod
+    def infer_education_from_role(cls, role_or_title: str) -> str:
+        """Intelligently infer suitable educational qualification based on candidate role."""
+        if not role_or_title:
+            return "B.Tech in Computer Science"
+        t = role_or_title.lower()
+        if any(k in t for k in ["cyber", "security"]):
+            return "B.Tech in Information Security / Computer Science"
+        return "B.Tech in Computer Science"
+
+    @classmethod
     def extract_experience_years(cls, text: str) -> float:
         """Rule-based heuristic extraction of work experience in years."""
         t_lower = text.lower()
@@ -465,6 +522,7 @@ class ResumeParser:
         education = cls.extract_education(raw_text)
         experience_years = cls.extract_experience_years(raw_text)
         current_title = cls.extract_current_title(raw_text)
+        location = cls.extract_location(raw_text)
         doc_validation = cls.validate_resume_document(raw_text)
         line_analysis = cls.analyze_resume_lines(raw_text)
 
@@ -472,6 +530,7 @@ class ResumeParser:
             "name": name,
             "email": email,
             "phone": phone,
+            "location": location,
             "skills": skills,
             "education": education,
             "years_of_experience": experience_years,
@@ -495,6 +554,7 @@ class ResumeParser:
         education = cls.extract_education(raw_text)
         experience_years = cls.extract_experience_years(raw_text)
         current_title = cls.extract_current_title(raw_text)
+        location = cls.extract_location(raw_text)
         doc_validation = cls.validate_resume_document(raw_text)
         line_analysis = cls.analyze_resume_lines(raw_text)
 
@@ -502,6 +562,7 @@ class ResumeParser:
             "name": name,
             "email": email,
             "phone": phone,
+            "location": location,
             "skills": skills,
             "education": education,
             "years_of_experience": experience_years,

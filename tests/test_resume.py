@@ -198,3 +198,22 @@ def test_strict_domain_misalignment_penalty():
     assert len(match_result["matched_skills"]) == 0
     assert "Critical Domain Mismatch" in match_result["domain_status"]
 
+
+def test_resume_upload_auto_fill_and_role_inference():
+    """Verify that role inference extracts skills & education and auto-fills profile on upload."""
+    cyber_skills = ResumeParser.infer_skills_from_role("cyber engineer")
+    assert "Cybersecurity" in cyber_skills
+    assert "Network Security" in cyber_skills
+    assert "Linux" in cyber_skills
+
+    cyber_edu = ResumeParser.infer_education_from_role("cyber engineer")
+    assert "Security" in cyber_edu or "Computer Science" in cyber_edu
+
+    cloud_skills = ResumeParser.infer_skills_from_role("cloud architect")
+    assert "AWS" in cloud_skills
+    assert "Docker" in cloud_skills
+
+    loc = ResumeParser.extract_location("Candidate located in Delhi / NCR, India")
+    assert "Delhi / NCR" in loc
+
+
