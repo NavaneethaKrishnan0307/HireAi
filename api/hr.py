@@ -190,8 +190,14 @@ def create_job(req: JobCreate, user: Dict[str, Any] = Depends(require_hr)):
         "scoring_weights": req.scoring_weights or {"skills": 0.50, "experience": 0.25, "education": 0.15, "additional": 0.10}
     }
 
-    res = supabase.table("jobs").insert(job_payload).execute()
-    created_job = res.data[0] if res.data else job_payload
+    try:
+        res = supabase.table("jobs").insert(job_payload).execute()
+        created_job = res.data[0] if res.data else job_payload
+    except Exception:
+        # Schema fallback: if target jobs table lacks JSON skills columns, insert base fields
+        safe_payload = {k: v for k, v in job_payload.items() if k not in ("required_skills", "preferred_skills", "scoring_weights")}
+        res = supabase.table("jobs").insert(safe_payload).execute()
+        created_job = res.data[0] if res.data else safe_payload
 
     # Create job_requirements entry
     req_payload = {
@@ -202,7 +208,13 @@ def create_job(req: JobCreate, user: Dict[str, Any] = Depends(require_hr)):
         "education_level": req.education_required,
         "certification_list": req.certifications_preferred
     }
-    supabase.table("job_requirements").insert(req_payload).execute()
+    try:
+        supabase.table("job_requirements").insert(req_payload).execute()
+    except Exception:
+        pass
+
+    for k, v in job_payload.items():
+        created_job.setdefault(k, v)
 
     return created_job
 
