@@ -19,11 +19,9 @@ import {
   X,
   TrendingUp,
   ShieldCheck,
-  User,
-  Eye
+  User
 } from 'lucide-react';
 import { CandidateAPI } from '../services/api';
-import ReportPreviewModal from '../components/ReportPreviewModal';
 import { exportReportToPdf } from '../utils/pdfExport';
 
   const getUserReportKey = () => {
@@ -51,7 +49,6 @@ export default function ResumeAnalyzerPage() {
   const [error, setError] = useState(null);
   const [syncingName, setSyncingName] = useState(false);
   const [syncSuccess, setSyncSuccess] = useState('');
-  const [showPreview, setShowPreview] = useState(false);
   const [downloadingDirect, setDownloadingDirect] = useState(false);
 
   useEffect(() => {
@@ -320,16 +317,6 @@ export default function ResumeAnalyzerPage() {
             title="Download PDF directly to your device"
           >
             <Download size={16} /> {downloadingDirect ? 'Generating...' : 'Download PDF'}
-          </button>
-
-          <button 
-            type="button"
-            onClick={() => setShowPreview(true)}
-            className="choose-btn" 
-            style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#0f172a' }}
-            title="Preview report document and download"
-          >
-            <Eye size={16} /> Preview & Download
           </button>
         </div>
       </div>
@@ -820,13 +807,6 @@ export default function ResumeAnalyzerPage() {
         )}
       </div>
     </div>
-
-    <ReportPreviewModal
-      isOpen={showPreview}
-      onClose={() => setShowPreview(false)}
-      report={report}
-      candidateName={report?.candidate_name}
-    />
   </div>
 );
 }

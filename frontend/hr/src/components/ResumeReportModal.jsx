@@ -17,18 +17,15 @@ import {
   User,
   TrendingUp,
   ShieldCheck,
-  Eye,
   Printer
 } from 'lucide-react';
 import { HRAPI } from '../services/api';
-import ReportPreviewModal from './ReportPreviewModal';
 import { exportReportToPdf } from '../utils/pdfExport';
 
 export default function ResumeReportModal({ candidateId, candidateName, onClose }) {
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showDocPreview, setShowDocPreview] = useState(false);
   const [downloadingDirect, setDownloadingDirect] = useState(false);
 
   useEffect(() => {
@@ -248,28 +245,6 @@ export default function ResumeReportModal({ candidateId, candidateName, onClose 
               title="Download PDF directly to your device"
             >
               <Download size={14} /> {downloadingDirect ? 'Generating...' : 'Download PDF'}
-            </button>
-
-            <button 
-              type="button"
-              onClick={() => setShowDocPreview(true)}
-              disabled={loading || !report}
-              style={{ 
-                backgroundColor: '#0f172a', 
-                color: '#ffffff', 
-                border: 'none', 
-                padding: '8px 14px', 
-                borderRadius: '8px', 
-                cursor: 'pointer', 
-                display: 'inline-flex', 
-                alignItems: 'center', 
-                gap: '6px', 
-                fontSize: '12px', 
-                fontWeight: '700' 
-              }}
-              title="Preview report document and download"
-            >
-              <Eye size={14} /> Preview & Download
             </button>
 
             <button 
@@ -782,13 +757,6 @@ export default function ResumeReportModal({ candidateId, candidateName, onClose 
           </div>
         )}
       </div>
-
-      <ReportPreviewModal
-        isOpen={showDocPreview}
-        onClose={() => setShowDocPreview(false)}
-        report={report}
-        candidateName={report?.candidate_name || candidateName}
-      />
     </div>
   );
 }

@@ -1,0 +1,40 @@
+[
+  {
+    "id": "5e85d3c6-e6d9-41c5-88b1-64ba73f628ad",
+    "hr_id": "3e8d1f63-ebf6-4217-9e84-4176900c413b",
+    "title": "python advisor",
+    "company": "tech",
+    "location": "Bangalore",
+    "min_experience": 3.0,
+    "max_experience": 6.0,
+    "min_salary": 1200000.0,
+    "max_salary": 2000000.0,
+    "education_required": "B.Tech/B.E. in Computer Science",
+    "certifications_preferred": [
+      "AWS Certified Developer"
+    ],
+    "description": "We are seeking an experienced python developer to lead design and development of high performance ",
+    "status": "active",
+    "created_at": "2026-10-08T18:10:12.172315+00:00",
+    "updated_at": "2026-10-08T18:10:12.172315+00:00"
+  },
+  {
+    "id": "b0a82932-93b9-4e9f-bbe4-0067388c2ae9",
+    "hr_id": "3e8d1f63-ebf6-4217-9e84-4176900c413b",
+    "title": "backend developer",
+    "company": "tech",
+    "location": "Bangalore",
+    "min_experience": 3.0,
+    "max_experience": 6.0,
+    "min_salary": 1200000.0,
+    "max_salary": 2000000.0,
+    "education_required": "B.Tech/B.E. in Computer Science",
+    "certifications_preferred": [
+      "AWS Certified Developer"
+    ],
+    "description": "We are seeking an experienced software engineer to lead design and development of high performance cloud applications.",
+    "status": "active",
+    "created_at": "2026-10-08T18:12:19.847054+00:00",
+    "updated_at": "2026-10-08T18:12:19.847054+00:00"
+  }
+]
