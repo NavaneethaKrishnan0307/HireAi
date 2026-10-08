@@ -120,6 +120,10 @@ export default function CreateJobPage() {
       alert('Please specify the Required Minimum Experience (in years).');
       return;
     }
+    if (!formData.education_required.trim()) {
+      alert('Please specify the Education Qualification Required (e.g. B.Tech/B.E. in Computer Science).');
+      return;
+    }
     if (!formData.required_skills.trim()) {
       alert('Please provide at least one Mandatory Skill (comma-separated).');
       return;
@@ -308,13 +312,14 @@ export default function CreateJobPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Education Qualification Required</label>
+              <label className="form-label">Education Qualification Required *</label>
               <input 
                 type="text" 
                 className="form-input" 
                 placeholder="e.g. B.Tech/B.E. in Computer Science" 
                 value={formData.education_required} 
                 onChange={(e) => setFormData({ ...formData, education_required: e.target.value })} 
+                required
               />
             </div>
 
