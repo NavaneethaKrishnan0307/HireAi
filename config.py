@@ -29,8 +29,10 @@ class Settings:
     
     # Upload settings
     UPLOAD_DIR: Path = BASE_DIR / os.getenv("UPLOAD_DIR", "uploads/resumes")
+    CANDIDATE_DOCS_DIR: Path = BASE_DIR / os.getenv("CANDIDATE_DOCS_DIR", "uploads/candidate_documents")
     MAX_FILE_SIZE_MB: int = int(os.getenv("MAX_FILE_SIZE_MB", 10))
     ALLOWED_EXTENSIONS: set = {".pdf", ".docx", ".doc"}
+    ALLOWED_DOC_EXTENSIONS: set = {".pdf", ".docx", ".doc", ".png", ".jpg", ".jpeg"}
 
     @classmethod
     def is_supabase_configured(cls) -> bool:
@@ -39,5 +41,8 @@ class Settings:
 
 settings = Settings()
 
-# Ensure upload directory exists
+# Ensure upload directories exist
 settings.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+settings.CANDIDATE_DOCS_DIR.mkdir(parents=True, exist_ok=True)
+for sub in ["certifications", "referrals", "other"]:
+    (settings.CANDIDATE_DOCS_DIR / sub).mkdir(parents=True, exist_ok=True)

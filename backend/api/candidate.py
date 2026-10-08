@@ -1,18 +1,24 @@
 import datetime
-from typing import Dict, Any, List
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
+import logging
+import uuid
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Form, Query
+from fastapi.responses import FileResponse
+from config import settings
 from backend.api.auth import require_candidate
 from backend.utils.supabase_client import get_supabase
 from backend.utils.file_handler import process_and_upload_resume
 from backend.services.resume_parser import ResumeParser
 from backend.services.candidate_ranker import CandidateRanker
-import uuid
 from backend.models.candidate import CandidateProfileUpdate, ParsedResumeResponse
 from backend.models.application import ApplicationCreate
 try:
     from backend.services.pipeline_manager import pipeline_manager
 except ImportError:
     from services.pipeline_manager import pipeline_manager
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/candidate", tags=["Candidate"])
 
@@ -634,3 +640,197 @@ def simulate_job_match(
         "heuristic_skill_roadmap": marginal_boosts,
         "actionable_insight": f"Acquiring the simulated skills will boost your candidate match rating by +{score_delta}% (From {base_match['overall_score']}% to {simulated_match['overall_score']}%)."
     }
+
+
+# ============================================================================
+# Candidate Document Storage & Preview Management (Certifications, Referrals, etc.)
+# ============================================================================
+
+@router.get("/resume/file")
+def get_resume_file(user: Dict[str, Any] = Depends(require_candidate)):
+    """Serve candidate resume file directly for high-fidelity inline document preview."""
+    supabase = get_supabase()
+    user_id = user["sub"]
+    cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
+    if not cand_res.data:
+        raise HTTPException(status_code=404, detail="Candidate profile not found")
+    cand = cand_res.data[0]
+    resume_fn = cand.get("resume_filename")
+    if not resume_fn:
+        raise HTTPException(status_code=404, detail="No resume uploaded yet")
+
+    # Search in settings.UPLOAD_DIR
+    target_path = settings.UPLOAD_DIR / resume_fn
+    if not target_path.exists():
+        matches = list(settings.UPLOAD_DIR.glob(f"{Path(resume_fn).stem}*"))
+        if matches:
+            target_path = matches[0]
+        else:
+            all_files = list(settings.UPLOAD_DIR.glob("*.pdf")) + list(settings.UPLOAD_DIR.glob("*.docx"))
+            if all_files:
+                target_path = all_files[0]
+            else:
+                raise HTTPException(status_code=404, detail="Resume document file not found on disk")
+
+    media_type = "application/pdf" if target_path.suffix.lower() == ".pdf" else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    return FileResponse(
+        path=str(target_path),
+        media_type=media_type,
+        filename=resume_fn,
+        headers={"Content-Disposition": f"inline; filename=\"{resume_fn}\""}
+    )
+
+
+@router.get("/documents")
+def get_candidate_documents(
+    doc_type: Optional[str] = Query(None, alias="type"),
+    user: Dict[str, Any] = Depends(require_candidate)
+):
+    """Retrieve all candidate uploaded documents (Certifications, Referrals, Other)."""
+    supabase = get_supabase()
+    user_id = user["sub"]
+    
+    query = supabase.table("candidate_documents").select("*").eq("user_id", user_id)
+    if doc_type and doc_type != "all":
+        query = query.eq("document_type", doc_type)
+        
+    res = query.execute()
+    docs = res.data or []
+    docs.sort(key=lambda d: d.get("created_at", ""), reverse=True)
+    return {"documents": docs}
+
+
+@router.post("/documents")
+def upload_candidate_document(
+    file: UploadFile = File(...),
+    document_type: str = Form(...),  # 'certification' | 'referral' | 'other'
+    title: str = Form(...),
+    issuer_or_referee: str = Form(""),
+    issue_date: str = Form(""),
+    user: Dict[str, Any] = Depends(require_candidate)
+):
+    """Upload a certification, referral, or general document with verification and storage."""
+    supabase = get_supabase()
+    user_id = user["sub"]
+    
+    cand_res = supabase.table("candidates").select("id").eq("user_id", user_id).execute()
+    cand_id = cand_res.data[0]["id"] if cand_res.data else user_id
+
+    original_name = file.filename or "document.pdf"
+    file_ext = Path(original_name).suffix.lower()
+
+    if file_ext not in settings.ALLOWED_DOC_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type '{file_ext}'. Allowed formats: PDF, PNG, JPG, JPEG, DOCX."
+        )
+
+    file_bytes = file.file.read()
+    max_bytes = settings.MAX_FILE_SIZE_MB * 1024 * 1024
+    if len(file_bytes) > max_bytes:
+        raise HTTPException(
+            status_code=400,
+            detail=f"File exceeds maximum allowed size of {settings.MAX_FILE_SIZE_MB}MB."
+        )
+
+    # Magic byte binary integrity verification
+    if file_ext == ".pdf" and not file_bytes.startswith(b"%PDF-"):
+        raise HTTPException(status_code=400, detail="Security Verification Failed: Not a valid PDF document.")
+    elif file_ext == ".png" and not file_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise HTTPException(status_code=400, detail="Security Verification Failed: Not a valid PNG image.")
+    elif file_ext in [".jpg", ".jpeg"] and not file_bytes.startswith(b"\xff\xd8\xff"):
+        raise HTTPException(status_code=400, detail="Security Verification Failed: Not a valid JPEG image.")
+    elif file_ext == ".docx" and not file_bytes.startswith(b"PK\x03\x04"):
+        raise HTTPException(status_code=400, detail="Security Verification Failed: Not a valid DOCX document.")
+
+    safe_type = document_type.strip().lower()
+    if safe_type not in ["certification", "referral", "other"]:
+        safe_type = "other"
+        
+    subfolder_name = "certifications" if safe_type == "certification" else "referrals" if safe_type == "referral" else "other"
+    target_dir = settings.CANDIDATE_DOCS_DIR / subfolder_name
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    clean_stem = Path(original_name).stem.replace(" ", "_")
+    unique_fn = f"{safe_type}_{clean_stem}_{uuid.uuid4().hex[:8]}{file_ext}"
+    dest_path = target_dir / unique_fn
+
+    with open(dest_path, "wb") as f:
+        f.write(file_bytes)
+
+    size_kb = len(file_bytes) / 1024
+    size_str = f"{size_kb:.1f} KB" if size_kb < 1024 else f"{size_kb/1024:.2f} MB"
+
+    mime_map = {
+        ".pdf": "application/pdf",
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".doc": "application/msword"
+    }
+    mime_type = mime_map.get(file_ext, "application/octet-stream")
+
+    doc_id = str(uuid.uuid4())
+    doc_record = {
+        "id": doc_id,
+        "user_id": user_id,
+        "candidate_id": cand_id,
+        "document_type": safe_type,
+        "title": title.strip() or clean_stem.replace("_", " "),
+        "issuer_or_referee": issuer_or_referee.strip(),
+        "issue_date": issue_date.strip(),
+        "file_name": original_name,
+        "stored_filename": unique_fn,
+        "file_url": f"/uploads/candidate_documents/{subfolder_name}/{unique_fn}",
+        "file_size": size_str,
+        "mime_type": mime_type,
+        "created_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+    }
+
+    supabase.table("candidate_documents").insert(doc_record).execute()
+    return {"message": "Document uploaded and saved successfully", "document": doc_record}
+
+
+@router.delete("/documents/{doc_id}")
+def delete_candidate_document(doc_id: str, user: Dict[str, Any] = Depends(require_candidate)):
+    """Delete a candidate document by ID."""
+    supabase = get_supabase()
+    user_id = user["sub"]
+    res = supabase.table("candidate_documents").select("*").eq("id", doc_id).eq("user_id", user_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+    doc = res.data[0]
+    
+    try:
+        subfolder = "certifications" if doc.get("document_type") == "certification" else "referrals" if doc.get("document_type") == "referral" else "other"
+        fpath = settings.CANDIDATE_DOCS_DIR / subfolder / doc.get("stored_filename", "")
+        if fpath.exists():
+            fpath.unlink()
+    except Exception as e:
+        logger.warning(f"Failed to delete document file: {e}")
+
+    supabase.table("candidate_documents").delete().eq("id", doc_id).execute()
+    return {"message": "Document deleted successfully"}
+
+
+@router.get("/documents/{doc_id}/file")
+def get_candidate_document_file(doc_id: str, user: Dict[str, Any] = Depends(require_candidate)):
+    """Stream candidate document directly with inline disposition for modal preview."""
+    supabase = get_supabase()
+    user_id = user["sub"]
+    res = supabase.table("candidate_documents").select("*").eq("id", doc_id).eq("user_id", user_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Document not found")
+    doc = res.data[0]
+    subfolder = "certifications" if doc.get("document_type") == "certification" else "referrals" if doc.get("document_type") == "referral" else "other"
+    fpath = settings.CANDIDATE_DOCS_DIR / subfolder / doc.get("stored_filename", "")
+    if not fpath.exists():
+        raise HTTPException(status_code=404, detail="Document file not found on disk")
+
+    return FileResponse(
+        path=str(fpath),
+        media_type=doc.get("mime_type") or "application/octet-stream",
+        filename=doc.get("file_name"),
+        headers={"Content-Disposition": f"inline; filename=\"{doc.get('file_name')}\""}
+    )

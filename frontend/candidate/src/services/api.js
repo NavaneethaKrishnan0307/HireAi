@@ -105,6 +105,59 @@ export const CandidateAPI = {
     return data;
   },
 
+  // Documents (Certifications, Referrals, Academic/Other)
+  async getDocuments(type) {
+    const q = type && type !== 'all' ? `?type=${encodeURIComponent(type)}` : '';
+    const res = await fetch(`${API_BASE}/api/candidate/documents${q}`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to load documents');
+    return res.json();
+  },
+
+  async uploadDocument({ file, document_type, title, issuer_or_referee, issue_date }) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('document_type', document_type);
+    formData.append('title', title);
+    if (issuer_or_referee) formData.append('issuer_or_referee', issuer_or_referee);
+    if (issue_date) formData.append('issue_date', issue_date);
+
+    const res = await fetch(`${API_BASE}/api/candidate/documents`, {
+      method: 'POST',
+      headers: { ...getAuthHeader() },
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Failed to upload document');
+    return data;
+  },
+
+  async deleteDocument(docId) {
+    const res = await fetch(`${API_BASE}/api/candidate/documents/${docId}`, {
+      method: 'DELETE',
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to delete document');
+    return res.json();
+  },
+
+  async getResumeFileBlob() {
+    const res = await fetch(`${API_BASE}/api/candidate/resume/file`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch resume file');
+    return res.blob();
+  },
+
+  async getDocumentFileBlob(docId) {
+    const res = await fetch(`${API_BASE}/api/candidate/documents/${docId}/file`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to fetch document file');
+    return res.blob();
+  },
+
   // Jobs
   async getJobs() {
     const res = await fetch(`${API_BASE}/api/candidate/jobs`, {

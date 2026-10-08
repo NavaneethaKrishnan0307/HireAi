@@ -39,6 +39,7 @@ async def add_security_headers(request, call_next):
 
 # Mount uploaded resume files as static assets
 app.mount("/uploads/resumes", StaticFiles(directory=str(settings.UPLOAD_DIR)), name="resumes")
+app.mount("/uploads/candidate_documents", StaticFiles(directory=str(settings.CANDIDATE_DOCS_DIR)), name="candidate_documents")
 
 # Register API Routers under /api prefix
 app.include_router(auth_router, prefix=settings.API_PREFIX)

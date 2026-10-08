@@ -42,6 +42,9 @@ dist-ssr/
 # Uploads
 uploads/resumes/*
 !uploads/resumes/.gitkeep
+uploads/candidate_documents/*
+!uploads/candidate_documents/**/.gitkeep
+!uploads/candidate_documents/.gitkeep
 
 # IDEs and OS
 .vscode/
