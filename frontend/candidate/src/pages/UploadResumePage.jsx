@@ -8,7 +8,9 @@ import {
   Star, 
   FileText, 
   ShieldCheck, 
-  MoreVertical,
+  Eye,
+  X,
+  Download,
   ArrowRight,
   CheckCircle2,
   AlertCircle,
@@ -62,9 +64,71 @@ export default function UploadResumePage() {
   const [savingDetails, setSavingDetails] = useState(false);
   const [detailsSavedMsg, setDetailsSavedMsg] = useState('');
 
+  // Uploaded Document Preview Modal State
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [previewBlobUrl, setPreviewBlobUrl] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState(null);
+
   useEffect(() => {
     loadProfile();
   }, []);
+
+  // Listen for Escape key to dismiss preview modal
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && showPreviewModal) {
+        handleClosePreview();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showPreviewModal, previewBlobUrl]);
+
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      if (previewBlobUrl && previewBlobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewBlobUrl);
+      }
+    };
+  }, [previewBlobUrl]);
+
+  const handlePreviewUploadedResume = async () => {
+    setShowPreviewModal(true);
+    setPreviewError(null);
+
+    if (previewBlobUrl) {
+      return;
+    }
+
+    try {
+      setPreviewLoading(true);
+      const blob = await CandidateAPI.getResumeFileBlob();
+      const url = URL.createObjectURL(blob);
+      setPreviewBlobUrl(url);
+    } catch (err) {
+      console.warn('Direct resume blob fetch failed, checking fallback:', err);
+      if (profile?.resume_url && profile.resume_url.startsWith('http')) {
+        setPreviewBlobUrl(profile.resume_url);
+      } else if (profile?.resume_filename) {
+        setPreviewBlobUrl(`http://localhost:8000/uploads/resumes/${profile.resume_filename}`);
+      } else {
+        setPreviewError('Unable to stream document preview. Please verify file upload or try downloading.');
+      }
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setShowPreviewModal(false);
+    if (previewBlobUrl && previewBlobUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewBlobUrl);
+    }
+    setPreviewBlobUrl(null);
+    setPreviewError(null);
+  };
 
   const loadProfile = async () => {
     try {
@@ -197,6 +261,12 @@ export default function UploadResumePage() {
       } else {
         setUploadProgress('Resume successfully parsed, validated and synchronized to your Profile!');
       }
+
+      // Invalidate any previously cached preview blob for the new file
+      if (previewBlobUrl && previewBlobUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(previewBlobUrl);
+      }
+      setPreviewBlobUrl(null);
 
       await loadProfile();
       setTimeout(() => setUploadProgress(null), 5000);
@@ -436,9 +506,38 @@ export default function UploadResumePage() {
                 <p className="file-date">Processed & Ready for Matching</p>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <span className="badge-processed">{recentStatus}</span>
-              <MoreVertical size={18} color="#94a3b8" style={{ cursor: 'pointer' }} />
+              <button
+                type="button"
+                onClick={handlePreviewUploadedResume}
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  padding: '6px 8px',
+                  cursor: 'pointer',
+                  color: '#475569',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#eff6ff';
+                  e.currentTarget.style.color = '#2563eb';
+                  e.currentTarget.style.borderColor = '#93c5fd';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#f8fafc';
+                  e.currentTarget.style.color = '#475569';
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                }}
+                title="Preview uploaded resume"
+                aria-label="Preview uploaded resume"
+              >
+                <Eye size={18} />
+              </button>
             </div>
           </div>
         ) : (
@@ -456,6 +555,230 @@ export default function UploadResumePage() {
           <p className="safe-subtitle">We ensure the security and privacy of your data.</p>
         </div>
       </div>
+
+      {/* Uploaded Document Preview Modal ("just preview") */}
+      {showPreviewModal && (
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px'
+          }}
+          onClick={handleClosePreview}
+        >
+          <div 
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '920px',
+              height: '88vh',
+              maxHeight: '850px',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              overflow: 'hidden'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '16px 24px',
+              borderBottom: '1px solid #e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: '#f8fafc'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '10px',
+                  backgroundColor: '#eff6ff',
+                  color: '#2563eb',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: 'inset 0 0 0 1px #dbeafe'
+                }}>
+                  <FileText size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0f172a' }}>
+                    {recentFilename || 'Uploaded Resume Document'}
+                  </h3>
+                  <span style={{ fontSize: '12px', color: '#64748b' }}>
+                    Uploaded Document Preview • Ready for AI Matching
+                  </span>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                {previewBlobUrl && (
+                  <a
+                    href={previewBlobUrl}
+                    download={recentFilename || 'resume.pdf'}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 14px',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      backgroundColor: '#ffffff',
+                      color: '#2563eb',
+                      textDecoration: 'none',
+                      border: '1px solid #bfdbfe',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                      cursor: 'pointer'
+                    }}
+                    title="Download uploaded resume file"
+                  >
+                    <Download size={14} /> Download
+                  </a>
+                )}
+                <button
+                  type="button"
+                  onClick={handleClosePreview}
+                  style={{
+                    background: '#f1f5f9',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '8px',
+                    cursor: 'pointer',
+                    color: '#64748b',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.15s ease'
+                  }}
+                  title="Close preview"
+                  aria-label="Close preview"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Body / Viewer */}
+            <div style={{
+              padding: '16px',
+              overflowY: 'auto',
+              flex: 1,
+              backgroundColor: '#f1f5f9',
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+              {previewLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b', margin: 'auto' }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    border: '3px solid #e2e8f0',
+                    borderTopColor: '#2563eb',
+                    borderRadius: '50%',
+                    animation: 'spin 0.8s linear infinite',
+                    margin: '0 auto 16px auto'
+                  }} />
+                  <p style={{ fontSize: '14px', fontWeight: 600, color: '#334155', margin: 0 }}>
+                    Loading uploaded document preview...
+                  </p>
+                </div>
+              ) : previewError ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b', margin: 'auto' }}>
+                  <AlertCircle size={40} color="#f59e0b" style={{ margin: '0 auto 12px auto' }} />
+                  <h4 style={{ fontSize: '15px', color: '#334155', margin: '0 0 6px 0' }}>Preview Stream Unavailable</h4>
+                  <p style={{ fontSize: '13px', margin: '0 0 16px 0' }}>{previewError}</p>
+                  <button
+                    type="button"
+                    onClick={handlePreviewUploadedResume}
+                    style={{
+                      padding: '8px 16px',
+                      borderRadius: '8px',
+                      backgroundColor: '#2563eb',
+                      color: '#ffffff',
+                      border: 'none',
+                      fontSize: '13px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Retry Preview
+                  </button>
+                </div>
+              ) : previewBlobUrl ? (
+                recentFilename.toLowerCase().match(/\.(png|jpg|jpeg)$/) ? (
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    backgroundColor: '#0f172a',
+                    borderRadius: '10px',
+                    overflow: 'hidden'
+                  }}>
+                    <img
+                      src={previewBlobUrl}
+                      alt="Uploaded Resume"
+                      style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    backgroundColor: '#ffffff',
+                    boxShadow: 'inset 0 0 4px rgba(0,0,0,0.05)',
+                    display: 'flex',
+                    flexDirection: 'column'
+                  }}>
+                    {recentFilename.toLowerCase().endsWith('.docx') && (
+                      <div style={{
+                        padding: '10px 16px',
+                        backgroundColor: '#eff6ff',
+                        borderBottom: '1px solid #dbeafe',
+                        fontSize: '12px',
+                        color: '#1e40af'
+                      }}>
+                        Word Document (.docx) format detected. If inline viewer does not render, use Download above to view locally.
+                      </div>
+                    )}
+                    <iframe
+                      src={previewBlobUrl}
+                      title="Uploaded Resume Preview"
+                      width="100%"
+                      height="100%"
+                      style={{ border: 'none', flex: 1 }}
+                    />
+                  </div>
+                )
+              ) : (
+                <div style={{ textAlign: 'center', padding: '60px 20px', color: '#64748b', margin: 'auto' }}>
+                  <AlertCircle size={40} color="#f59e0b" style={{ margin: '0 auto 12px auto' }} />
+                  <h4 style={{ fontSize: '15px', color: '#334155', margin: '0 0 6px 0' }}>Preview Stream Unavailable</h4>
+                  <p style={{ fontSize: '13px' }}>The document cannot be rendered inline.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
