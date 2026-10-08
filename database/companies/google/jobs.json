@@ -1,0 +1,19 @@
+[
+  {
+    "id": "88888888-8888-8888-8888-888888888881",
+    "hr_id": "f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a88",
+    "title": "Site Reliability Engineer (SRE)",
+    "company": "Google",
+    "location": "Hyderabad",
+    "min_experience": 3.0,
+    "max_experience": 7.0,
+    "min_salary": 2500000.0,
+    "max_salary": 3800000.0,
+    "education_required": "B.Tech/M.Tech in CS/EE",
+    "certifications_preferred": [
+      "Google Cloud Professional Cloud Architect"
+    ],
+    "description": "Ensure high availability, low latency, and distributed systems resilience for planetary-scale applications.",
+    "status": "active"
+  }
+]

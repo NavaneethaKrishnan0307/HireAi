@@ -226,7 +226,8 @@ def register(req: RegisterRequest):
                 "email": new_user["email"],
                 "role": new_user["role"],
                 "full_name": new_user["full_name"],
-                "avatar_url": None
+                "avatar_url": None,
+                "company_name": role_profile.get("company_name") if role_profile and req.role == "hr" else None
             },
             "role_profile": role_profile
         }
@@ -282,7 +283,8 @@ def login(req: LoginRequest):
                 "email": user["email"],
                 "role": user["role"],
                 "full_name": user["full_name"],
-                "avatar_url": user.get("avatar_url")
+                "avatar_url": user.get("avatar_url"),
+                "company_name": role_profile.get("company_name", "TechCorp Solutions") if role_profile and user.get("role") == "hr" else None
             },
             "role_profile": role_profile
         }

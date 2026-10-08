@@ -5,10 +5,13 @@ import { HRAPI } from '../services/api';
 
 export default function CreateJobPage() {
   const navigate = useNavigate();
+  const user = HRAPI.getCurrentUser();
+  const activeCompany = user?.company_name || 'TechCorp Solutions';
+
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
-    company: 'TechCorp Solutions',
+    company: activeCompany,
     department: 'Engineering',
     location: 'Bangalore',
     min_experience: 3.0,
@@ -71,12 +74,16 @@ export default function CreateJobPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label">Company Name</label>
+              <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <span>Company / Organization</span>
+                <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '600' }}>🔒 Locked to your Secure Vault</span>
+              </label>
               <input 
                 type="text" 
                 className="form-input" 
                 value={formData.company} 
-                onChange={(e) => setFormData({ ...formData, company: e.target.value })} 
+                readOnly
+                style={{ backgroundColor: '#f8fafc', color: '#334155', fontWeight: '600', cursor: 'not-allowed' }}
                 required 
               />
             </div>

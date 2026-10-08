@@ -15,8 +15,9 @@ export const HRAPI = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Login failed');
+    const company = data.user?.company_name || data.role_profile?.company_name || 'TechCorp Solutions';
     localStorage.setItem('hr_token', data.token);
-    localStorage.setItem('hr_user', JSON.stringify(data.user));
+    localStorage.setItem('hr_user', JSON.stringify({ ...data.user, company_name: company }));
     return data;
   },
 
@@ -34,14 +35,23 @@ export const HRAPI = {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.detail || 'Registration failed');
+    const company = data.user?.company_name || data.role_profile?.company_name || companyName.trim() || 'TechCorp Solutions';
     localStorage.setItem('hr_token', data.token);
-    localStorage.setItem('hr_user', JSON.stringify(data.user));
+    localStorage.setItem('hr_user', JSON.stringify({ ...data.user, company_name: company }));
     return data;
   },
 
   logout() {
     localStorage.removeItem('hr_token');
     localStorage.removeItem('hr_user');
+  },
+
+  async getCompanyVault() {
+    const res = await fetch(`${API_BASE}/api/hr/company-vault`, {
+      headers: { ...getAuthHeader() }
+    });
+    if (!res.ok) throw new Error('Failed to load company vault metadata');
+    return res.json();
   },
 
   async forgotPassword(email) {

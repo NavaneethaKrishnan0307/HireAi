@@ -1,0 +1,26 @@
+{
+  "77777777-aaaa-bbbb-cccc-777777777771": {
+    "id": "77777777-aaaa-bbbb-cccc-777777777771",
+    "job_id": "77777777-7777-7777-7777-777777777771",
+    "candidate_id": "11111111-1111-1111-1111-111111111111",
+    "status": "shortlisted",
+    "applied_at": "2025-08-01T10:00:00Z",
+    "stage_details": {
+      "shortlisted": {
+        "notes": "Strong AWS and Python match for cloud architect track."
+      }
+    }
+  },
+  "11111111-1111-1111-1111-111111111111:77777777-7777-7777-7777-777777777771": {
+    "id": "77777777-aaaa-bbbb-cccc-777777777771",
+    "job_id": "77777777-7777-7777-7777-777777777771",
+    "candidate_id": "11111111-1111-1111-1111-111111111111",
+    "status": "shortlisted",
+    "applied_at": "2025-08-01T10:00:00Z",
+    "stage_details": {
+      "shortlisted": {
+        "notes": "Strong AWS and Python match for cloud architect track."
+      }
+    }
+  }
+}

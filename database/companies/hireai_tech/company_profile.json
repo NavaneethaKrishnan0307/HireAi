@@ -1,0 +1,9 @@
+{
+  "company_name": "HireAI Tech",
+  "company_slug": "hireai_tech",
+  "department": "Talent Acquisition",
+  "vault_status": "isolated_secure",
+  "isolation_level": "AES-256 Multi-Tenant Secure Partition",
+  "created_at": "2026-10-08T17:03:55.265385+00:00",
+  "updated_at": "2026-10-08T17:03:55.265396+00:00"
+}

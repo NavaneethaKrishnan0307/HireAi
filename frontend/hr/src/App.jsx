@@ -9,6 +9,7 @@ import AllCandidatesPage from './pages/AllCandidatesPage';
 import KanbanPipelinePage from './pages/KanbanPipelinePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import SettingsPage from './pages/SettingsPage';
 import { HRAPI } from './services/api';
 import './App.css';
 
@@ -71,16 +72,7 @@ export default function App() {
 
         <Route path="/settings" element={
           <ProtectedLayout>
-            <div className="hr-content-area">
-              <h2 className="hr-page-title">Settings</h2>
-              <p className="hr-page-subtitle">Recruitment pipeline preferences and organization profile.</p>
-              <div className="job-find-card">
-                <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '10px' }}>Organization Profile</h3>
-                <p style={{ fontSize: '13px', color: '#64748b' }}>Company: TechCorp Solutions</p>
-                <p style={{ fontSize: '13px', color: '#64748b' }}>Department: Talent Acquisition</p>
-                <p style={{ fontSize: '13px', color: '#64748b', marginTop: '10px' }}>AI Engine: Deterministic Multi-Criteria Rule Ranker (Active)</p>
-              </div>
-            </div>
+            <SettingsPage />
           </ProtectedLayout>
         } />
 

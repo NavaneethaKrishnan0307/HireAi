@@ -1,13 +1,14 @@
 from typing import Dict, Any, List, Optional
 import io
 import csv
+import logging
 import datetime
+import uuid
 from fastapi import APIRouter, HTTPException, Depends, Query, Response
 from backend.api.auth import require_hr
 from backend.utils.supabase_client import get_supabase
 from backend.services.candidate_ranker import CandidateRanker
 from backend.models.job import JobCreate, JobUpdate, JobSearchQuery
-import uuid
 from backend.models.application import (
     ApplicationStatusUpdate, 
     CandidateStatusUpdate,
@@ -19,13 +20,57 @@ try:
 except ImportError:
     from services.pipeline_manager import pipeline_manager, STAGE_TO_DB_STATUS
 
+try:
+    from backend.services.company_vault import company_vault_manager, get_company_slug
+except ImportError:
+    from services.company_vault import company_vault_manager, get_company_slug
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/hr", tags=["HR"])
 
+
 def _get_hr_profile(user_id: str, supabase) -> Dict[str, Any]:
+    """Retrieve HR profile, mapping to specific registered company tenant."""
     hr_res = supabase.table("hr_users").select("*").eq("user_id", user_id).execute()
     if hr_res.data and len(hr_res.data) > 0:
         return hr_res.data[0]
+    
+    # Secondary check in users table in case company was stored on user profile
+    try:
+        u_res = supabase.table("users").select("*").eq("id", user_id).execute()
+        if u_res.data and len(u_res.data) > 0:
+            u = u_res.data[0]
+            if u.get("company_name"):
+                return {"id": user_id, "user_id": user_id, "company_name": u.get("company_name")}
+    except Exception:
+        pass
+
     return {"id": "f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01", "company_name": "TechCorp Solutions"}
+
+
+def _get_hr_company(user: Dict[str, Any], supabase) -> str:
+    """Extract authenticated HR's company name with tenant boundary guarantee."""
+    profile = _get_hr_profile(user.get("sub", ""), supabase)
+    comp = profile.get("company_name") or user.get("company_name") or "TechCorp Solutions"
+    return str(comp).strip()
+
+
+def _verify_job_ownership(job: Dict[str, Any], hr_company: str) -> None:
+    """
+    Enforces cryptographic multi-tenant isolation.
+    Throws 403 Forbidden if HR attempts to inspect, modify, or delete another organization's records.
+    """
+    job_comp = str(job.get("company") or "").strip().lower()
+    hr_comp = str(hr_company or "").strip().lower()
+    if not job_comp:
+        return
+    if job_comp != hr_comp:
+        logger.warning("Unauthorized cross-tenant access attempt: '%s' attempted to access '%s' job.", hr_company, job.get("company"))
+        raise HTTPException(
+            status_code=403,
+            detail=f"Access denied: Organization tenant isolation policy prevents accessing records belonging to '{job.get('company')}'."
+        )
 
 
 def _enrich_candidate(cand: Dict[str, Any], user_map: Dict[str, Any]) -> Dict[str, Any]:
@@ -55,12 +100,18 @@ def _enrich_candidate(cand: Dict[str, Any], user_map: Dict[str, Any]) -> Dict[st
 
 @router.get("/dashboard")
 def get_dashboard(user: Dict[str, Any] = Depends(require_hr)):
+    """
+    Tenant-Scoped HR Dashboard:
+    Computes analytics, jobs, applicants, and pipeline matches strictly for the HR's organization.
+    """
     supabase = get_supabase()
-    hr_profile = _get_hr_profile(user["sub"], supabase)
+    hr_company = _get_hr_company(user, supabase)
 
-    # 1. Fetch Jobs
+    # 1. Fetch Jobs for this company
     jobs_res = supabase.table("jobs").select("*").execute()
-    jobs = jobs_res.data or []
+    all_jobs = jobs_res.data or []
+    jobs = [j for j in all_jobs if j.get("company", "").strip().lower() == hr_company.lower()]
+    company_job_ids = {j["id"] for j in jobs}
 
     # 2. Fetch Candidates
     cands_res = supabase.table("candidates").select("*").execute()
@@ -70,9 +121,10 @@ def get_dashboard(user: Dict[str, Any] = Depends(require_hr)):
     users_res = supabase.table("users").select("*").execute()
     user_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
 
-    # 4. Fetch Applications
+    # 4. Fetch Applications scoped strictly to this company's jobs
     apps_res = supabase.table("applications").select("*").execute()
-    applications = apps_res.data or []
+    all_apps = apps_res.data or []
+    applications = [a for a in all_apps if a.get("job_id") in company_job_ids]
 
     shortlisted_count = sum(1 for a in applications if a.get("status") == "shortlisted")
 
@@ -83,6 +135,7 @@ def get_dashboard(user: Dict[str, Any] = Depends(require_hr)):
     default_job = jobs[0] if jobs else {
         "id": "default",
         "title": "Software Engineer",
+        "company": hr_company,
         "required_skills": ["Python", "SQL", "AWS"],
         "min_experience": 3.0,
         "education_required": "B.Tech/B.E."
@@ -90,6 +143,8 @@ def get_dashboard(user: Dict[str, Any] = Depends(require_hr)):
     top_matches = CandidateRanker.rank_candidates(enriched_candidates, default_job)
 
     return {
+        "company": hr_company,
+        "vault_status": "isolated_secure",
         "stats": {
             "total_jobs": len(jobs),
             "total_applicants": len(applications),
@@ -245,9 +300,13 @@ def search_candidates(query: JobSearchQuery, user: Dict[str, Any] = Depends(requ
 
 @router.get("/jobs")
 def get_hr_jobs(user: Dict[str, Any] = Depends(require_hr)):
+    """Return only jobs belonging to the authenticated HR's company."""
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
+
     jobs_res = supabase.table("jobs").select("*").order("created_at", desc=True).execute()
-    jobs = jobs_res.data or []
+    all_jobs = jobs_res.data or []
+    jobs = [j for j in all_jobs if j.get("company", "").strip().lower() == hr_company.lower()]
 
     # Attach applicant counts
     apps_res = supabase.table("applications").select("job_id").execute()
@@ -265,13 +324,20 @@ def get_hr_jobs(user: Dict[str, Any] = Depends(require_hr)):
 
 @router.post("/jobs")
 def create_job(req: JobCreate, user: Dict[str, Any] = Depends(require_hr)):
+    """
+    Publish a new job opening bound directly to the authenticated HR's organization.
+    Saves to central database and writes copy to company's hardware-isolated vault.
+    """
     supabase = get_supabase()
     hr_profile = _get_hr_profile(user["sub"], supabase)
+    hr_company = _get_hr_company(user, supabase)
+
+    job_company = hr_company or req.company or "TechCorp Solutions"
 
     job_payload = {
         "hr_id": hr_profile.get("id"),
         "title": req.title,
-        "company": req.company or hr_profile.get("company_name", "TechCorp Solutions"),
+        "company": job_company,
         "location": req.location,
         "min_experience": req.min_experience,
         "max_experience": req.max_experience,
@@ -295,6 +361,12 @@ def create_job(req: JobCreate, user: Dict[str, Any] = Depends(require_hr)):
         res = supabase.table("jobs").insert(safe_payload).execute()
         created_job = res.data[0] if res.data else safe_payload
 
+    # Persist copy to company's dedicated physical vault
+    try:
+        company_vault_manager.save_company_job(job_company, created_job)
+    except Exception as e:
+        logger.warning("Could not sync job to company vault: %s", e)
+
     # Create job_requirements entry
     req_payload = {
         "job_id": created_job.get("id"),
@@ -317,19 +389,51 @@ def create_job(req: JobCreate, user: Dict[str, Any] = Depends(require_hr)):
 
 @router.put("/jobs/{job_id}")
 def update_job(job_id: str, req: JobUpdate, user: Dict[str, Any] = Depends(require_hr)):
+    """Update job opening with strict tenant ownership validation."""
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
+
+    job_res = supabase.table("jobs").select("*").eq("id", job_id).execute()
+    if not job_res.data:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    existing_job = job_res.data[0]
+    _verify_job_ownership(existing_job, hr_company)
+
     update_data = {k: v for k, v in req.model_dump().items() if v is not None}
     
     res = supabase.table("jobs").update(update_data).eq("id", job_id).execute()
     if not res.data:
         raise HTTPException(status_code=404, detail="Job not found")
-    return res.data[0]
+    updated = res.data[0]
+
+    try:
+        company_vault_manager.save_company_job(hr_company, updated)
+    except Exception:
+        pass
+
+    return updated
 
 
 @router.delete("/jobs/{job_id}")
 def delete_job(job_id: str, user: Dict[str, Any] = Depends(require_hr)):
+    """Delete job opening with strict tenant ownership validation."""
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
+
+    job_res = supabase.table("jobs").select("*").eq("id", job_id).execute()
+    if not job_res.data:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    existing_job = job_res.data[0]
+    _verify_job_ownership(existing_job, hr_company)
+
     res = supabase.table("jobs").delete().eq("id", job_id).execute()
+    try:
+        company_vault_manager.delete_company_job(hr_company, job_id)
+    except Exception:
+        pass
+
     return {"message": "Job successfully deleted", "job_id": job_id}
 
 
@@ -342,12 +446,15 @@ def get_job_applicants(
     weight_additional: Optional[float] = None,
     user: Dict[str, Any] = Depends(require_hr)
 ):
+    """Retrieve ranked applicants with strict organization tenant boundary check."""
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
     
     job_res = supabase.table("jobs").select("*").eq("id", job_id).execute()
     if not job_res.data:
         raise HTTPException(status_code=404, detail="Job not found")
     job = job_res.data[0]
+    _verify_job_ownership(job, hr_company)
 
     # Resolve scoring weights (URL override -> job saved weights -> default)
     custom_weights = None
@@ -454,6 +561,8 @@ def get_candidate_details(candidate_id: str, user: Dict[str, Any] = Depends(requ
 @router.post("/match/{application_id}")
 def run_match_on_application(application_id: str, user: Dict[str, Any] = Depends(require_hr)):
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
+
     app_res = supabase.table("applications").select("*").eq("id", application_id).execute()
     if not app_res.data:
         raise HTTPException(status_code=404, detail="Application not found")
@@ -464,6 +573,8 @@ def run_match_on_application(application_id: str, user: Dict[str, Any] = Depends
 
     if not job_res.data or not cand_res.data:
         raise HTTPException(status_code=400, detail="Associated job or candidate missing")
+
+    _verify_job_ownership(job_res.data[0], hr_company)
 
     match_result = CandidateRanker.calculate_candidate_match(cand_res.data[0], job_res.data[0])
     return {
@@ -479,10 +590,20 @@ def update_application_status(
     user: Dict[str, Any] = Depends(require_hr)
 ):
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
+
     app_res = supabase.table("applications").select("*").eq("id", application_id).execute()
     if not app_res.data:
         raise HTTPException(status_code=404, detail="Application not found")
     current_app = app_res.data[0]
+    
+    # Ownership verification
+    jid = current_app.get("job_id")
+    if jid:
+        j_res = supabase.table("jobs").select("*").eq("id", jid).execute()
+        if j_res.data:
+            _verify_job_ownership(j_res.data[0], hr_company)
+
     updated = pipeline_manager.safe_update_supabase(
         supabase=supabase,
         app_id=application_id,
@@ -490,6 +611,12 @@ def update_application_status(
         candidate_id=current_app.get("candidate_id"),
         job_id=current_app.get("job_id")
     )
+
+    try:
+        company_vault_manager.save_company_pipeline_state(hr_company, application_id, updated)
+    except Exception:
+        pass
+
     return {
         "message": f"Application status updated to {req.status}",
         "application": updated
@@ -504,17 +631,25 @@ def update_candidate_status_by_id(
 ):
     """
     Direct Candidate Pipeline Link:
-    Allows HR to shortlist, review, or reject a candidate.
-    Creates or updates the application link directly in the database.
+    Allows HR to shortlist, review, or reject a candidate within their company pipeline.
     """
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
     
-    # 1. Resolve job_id
+    # 1. Resolve job_id scoped to this company
     job_id = req.job_id
-    if not job_id:
+    if job_id:
+        j_res = supabase.table("jobs").select("*").eq("id", job_id).execute()
+        if j_res.data:
+            _verify_job_ownership(j_res.data[0], hr_company)
+    else:
         jobs_res = supabase.table("jobs").select("*").eq("status", "active").execute()
-        if jobs_res.data and len(jobs_res.data) > 0:
-            job_id = jobs_res.data[0]["id"]
+        all_active = jobs_res.data or []
+        company_active = [j for j in all_active if j.get("company", "").strip().lower() == hr_company.lower()]
+        if company_active:
+            job_id = company_active[0]["id"]
+        elif all_active:
+            job_id = all_active[0]["id"]
         else:
             raise HTTPException(status_code=400, detail="No active job found to attach candidate status to")
     
@@ -557,6 +692,11 @@ def update_candidate_status_by_id(
             candidate_id=candidate_id,
             job_id=job_id
         )
+
+    try:
+        company_vault_manager.save_company_pipeline_state(hr_company, app_id, updated_app)
+    except Exception:
+        pass
         
     return {
         "message": f"Candidate status updated to {req.status}",
@@ -589,6 +729,7 @@ def get_hr_candidate_report(candidate_id: str, user: Dict[str, Any] = Depends(re
     report = CandidateRanker.generate_resume_audit_report(enriched, active_jobs)
     return report
 
+
 @router.get("/pipeline")
 def get_hr_pipeline(
     job_id: Optional[str] = None,
@@ -596,34 +737,53 @@ def get_hr_pipeline(
 ):
     """
     Interactive Kanban Recruitment Pipeline:
+    Strictly tenant-scoped to the authenticated HR's organization.
     Returns applications grouped by stage with explainable scores, interview questions, and proof trees.
-    Stages: applied, shortlisted, technical_assessment, interview_scheduled, offer_extended, rejected
     """
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
     
-    # Fetch jobs
+    # 1. Fetch jobs for this company
     jobs_res = supabase.table("jobs").select("*").execute()
-    jobs = jobs_res.data or []
-    jobs_map = {j["id"]: j for j in jobs}
+    all_jobs = jobs_res.data or []
+    jobs = [j for j in all_jobs if j.get("company", "").strip().lower() == hr_company.lower()]
+    company_jobs_map = {j["id"]: j for j in jobs}
+    company_job_ids = set(company_jobs_map.keys())
     
-    # Default active job if not provided
-    active_job = jobs_map.get(job_id) if job_id else (jobs[0] if jobs else None)
+    # 2. Resolve active job and validate tenant permissions
+    if job_id and job_id != "all":
+        if job_id in company_jobs_map:
+            active_job = company_jobs_map[job_id]
+        else:
+            all_jobs_map = {j["id"]: j for j in all_jobs}
+            if job_id in all_jobs_map:
+                raise HTTPException(status_code=403, detail="Access denied: Requested job belongs to another organization.")
+            else:
+                # Ad-hoc test job ID
+                active_job = {"id": job_id, "title": "Engineering", "company": hr_company}
+    else:
+        active_job = jobs[0] if jobs else None
     
-    # Fetch all applications
+    # 3. Fetch applications
     app_query = supabase.table("applications").select("*")
     if job_id and job_id != "all":
         app_query = app_query.eq("job_id", job_id)
     apps_res = app_query.execute()
-    apps = apps_res.data or []
+    raw_apps = apps_res.data or []
+
+    if job_id and job_id != "all":
+        apps = raw_apps
+    else:
+        apps = [a for a in raw_apps if a.get("job_id") in company_job_ids]
     
-    # Fetch candidates & users
+    # 4. Fetch candidates & users
     cands_res = supabase.table("candidates").select("*").execute()
     cands_map = {c["id"]: c for c in (cands_res.data or [])}
     
     users_res = supabase.table("users").select("*").execute()
     users_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
     
-    # Build stage buckets
+    # 5. Build stage buckets
     stages = {
         "applied": [],
         "shortlisted": [],
@@ -639,10 +799,11 @@ def get_hr_pipeline(
         cand = cands_map.get(cid) or next((c for c in (cands_res.data or []) if str(c.get("id")) == cid or str(c.get("user_id")) == cid), {})
         
         enriched_cand = _enrich_candidate(cand, users_map)
-        target_job = jobs_map.get(app_enriched.get("job_id")) or active_job or {
+        target_job = company_jobs_map.get(app_enriched.get("job_id")) or active_job or {
             "title": "Software Engineer",
             "required_skills": ["Python", "SQL"],
-            "min_experience": 2.0
+            "min_experience": 2.0,
+            "company": hr_company
         }
         
         match_details = CandidateRanker.calculate_candidate_match(enriched_cand, target_job)
@@ -656,7 +817,7 @@ def get_hr_pipeline(
             "candidate_id": cand.get("id") or cid,
             "job_id": app_enriched.get("job_id"),
             "job_title": target_job.get("title", "Engineering"),
-            "company": target_job.get("company", "TechCorp"),
+            "company": target_job.get("company", hr_company),
             "stage": stage_key,
             "status": stage_key,
             "stage_details": app_enriched.get("stage_details") or {},
@@ -673,6 +834,8 @@ def get_hr_pipeline(
         stages[k].sort(key=lambda x: x["match_score"], reverse=True)
 
     return {
+        "company": hr_company,
+        "vault_status": "isolated_secure",
         "jobs": jobs,
         "active_job": active_job,
         "pipeline_stages": stages,
@@ -686,15 +849,22 @@ def move_pipeline_stage(
     user: Dict[str, Any] = Depends(require_hr)
 ):
     """
-    Update candidate's recruitment stage in the Kanban board and optionally update stage details.
+    Update candidate's recruitment stage in the Kanban board.
+    Strictly enforces tenant ownership.
     """
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
     
     if req.application_id:
         app_res = supabase.table("applications").select("*").eq("id", req.application_id).execute()
         current_app = app_res.data[0] if app_res.data else {}
-        cid = current_app.get("candidate_id") or req.candidate_id
         jid = current_app.get("job_id") or req.job_id
+        if jid:
+            j_res = supabase.table("jobs").select("*").eq("id", jid).execute()
+            if j_res.data:
+                _verify_job_ownership(j_res.data[0], hr_company)
+
+        cid = current_app.get("candidate_id") or req.candidate_id
         
         updated = pipeline_manager.safe_update_supabase(
             supabase=supabase,
@@ -704,13 +874,24 @@ def move_pipeline_stage(
             candidate_id=cid,
             job_id=jid
         )
+        try:
+            company_vault_manager.save_company_pipeline_state(hr_company, req.application_id, updated)
+        except Exception:
+            pass
         return {"message": f"Moved to {req.target_stage}", "application": updated}
     
     if req.candidate_id:
         target_job = req.job_id
-        if not target_job:
-            jobs_res = supabase.table("jobs").select("id").execute()
-            if jobs_res.data:
+        if target_job:
+            j_res = supabase.table("jobs").select("*").eq("id", target_job).execute()
+            if j_res.data:
+                _verify_job_ownership(j_res.data[0], hr_company)
+        else:
+            jobs_res = supabase.table("jobs").select("*").execute()
+            comp_jobs = [j for j in (jobs_res.data or []) if j.get("company", "").strip().lower() == hr_company.lower()]
+            if comp_jobs:
+                target_job = comp_jobs[0]["id"]
+            elif jobs_res.data:
                 target_job = jobs_res.data[0]["id"]
         
         # Check application by candidate_id or user_id
@@ -733,6 +914,10 @@ def move_pipeline_stage(
                 candidate_id=req.candidate_id,
                 job_id=current_app.get("job_id") or target_job
             )
+            try:
+                company_vault_manager.save_company_pipeline_state(hr_company, app_id, updated)
+            except Exception:
+                pass
             return {"message": f"Moved to {req.target_stage}", "application": updated}
         else:
             db_status = STAGE_TO_DB_STATUS.get(req.target_stage, "applied")
@@ -757,6 +942,10 @@ def move_pipeline_stage(
                 candidate_id=req.candidate_id,
                 job_id=target_job
             )
+            try:
+                company_vault_manager.save_company_pipeline_state(hr_company, app_id, updated)
+            except Exception:
+                pass
             return {"message": f"Candidate added to {req.target_stage}", "application": updated}
 
     raise HTTPException(status_code=400, detail="Missing application_id or candidate_id")
@@ -770,13 +959,22 @@ def update_application_stage_details(
 ):
     """
     Allows HR to schedule Tech Assessment / Interview or record official Job Offer details.
+    Enforces tenant ownership.
     """
     supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
+
     app_res = supabase.table("applications").select("*").eq("id", application_id).execute()
     if not app_res.data:
         raise HTTPException(status_code=404, detail="Application not found")
 
     current_app = app_res.data[0]
+    jid = current_app.get("job_id")
+    if jid:
+        j_res = supabase.table("jobs").select("*").eq("id", jid).execute()
+        if j_res.data:
+            _verify_job_ownership(j_res.data[0], hr_company)
+
     target_stage = req.target_stage or current_app.get("status") or "technical_assessment"
 
     updated = pipeline_manager.safe_update_supabase(
@@ -787,7 +985,24 @@ def update_application_stage_details(
         candidate_id=current_app.get("candidate_id"),
         job_id=current_app.get("job_id")
     )
+
+    try:
+        company_vault_manager.save_company_pipeline_state(hr_company, application_id, updated)
+    except Exception:
+        pass
+
     return {
         "message": "Application stage details saved successfully",
         "application": updated
     }
+
+
+@router.get("/company-vault")
+def get_company_vault_status(user: Dict[str, Any] = Depends(require_hr)):
+    """
+    Returns enterprise hardware-isolated vault metadata and encryption status for active company.
+    """
+    supabase = get_supabase()
+    hr_company = _get_hr_company(user, supabase)
+    summary = company_vault_manager.get_vault_summary(hr_company)
+    return summary

@@ -1,0 +1,51 @@
+[
+  {
+    "id": "55555555-5555-5555-5555-555555555551",
+    "hr_id": "f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01",
+    "title": "Senior Python Developer",
+    "company": "TechCorp Solutions",
+    "location": "Bangalore",
+    "min_experience": 3.0,
+    "max_experience": 7.0,
+    "min_salary": 1200000.0,
+    "max_salary": 2000000.0,
+    "education_required": "B.E./B.Tech in CSE or equivalent",
+    "certifications_preferred": [
+      "AWS Certified Developer"
+    ],
+    "description": "Looking for an experienced Python developer with strong SQL, API, and cloud expertise.",
+    "status": "active"
+  },
+  {
+    "id": "55555555-5555-5555-5555-555555555552",
+    "hr_id": "f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01",
+    "title": "Full Stack Engineer (Python & React)",
+    "company": "TechCorp Solutions",
+    "location": "Chennai",
+    "min_experience": 2.0,
+    "max_experience": 5.0,
+    "min_salary": 900000.0,
+    "max_salary": 1500000.0,
+    "education_required": "Bachelor Degree in Engineering or CS",
+    "certifications_preferred": [],
+    "description": "Develop scalable web applications utilizing Python FastAPI backend and modern React frontend.",
+    "status": "active"
+  },
+  {
+    "id": "55555555-5555-5555-5555-555555555553",
+    "hr_id": "f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a01",
+    "title": "Java Spring Boot Architect",
+    "company": "TechCorp Solutions",
+    "location": "Hyderabad",
+    "min_experience": 4.0,
+    "max_experience": 8.0,
+    "min_salary": 1500000.0,
+    "max_salary": 2500000.0,
+    "education_required": "B.Tech/MCA",
+    "certifications_preferred": [
+      "Oracle Java Certified"
+    ],
+    "description": "Architect high-throughput microservices using Java Spring Boot and enterprise relational databases.",
+    "status": "active"
+  }
+]

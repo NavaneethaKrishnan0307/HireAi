@@ -1,0 +1,37 @@
+[
+  {
+    "id": "77777777-7777-7777-7777-777777777771",
+    "hr_id": "f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a77",
+    "title": "Cloud Solutions Architect (Azure / AWS)",
+    "company": "AZENTURE",
+    "location": "Bangalore / Hybrid",
+    "min_experience": 4.0,
+    "max_experience": 8.0,
+    "min_salary": 1800000.0,
+    "max_salary": 2800000.0,
+    "education_required": "B.Tech/B.E. in Computer Science or IT",
+    "certifications_preferred": [
+      "AWS Solutions Architect",
+      "Azure Solutions Architect"
+    ],
+    "description": "Design enterprise cloud modernization architectures for clients across multi-cloud environments.",
+    "status": "active"
+  },
+  {
+    "id": "77777777-7777-7777-7777-777777777772",
+    "hr_id": "f0eebc99-9c0b-4ef8-bb6d-6bb9bd380a77",
+    "title": "Enterprise Full Stack Consultant",
+    "company": "AZENTURE",
+    "location": "Chennai",
+    "min_experience": 3.0,
+    "max_experience": 6.0,
+    "min_salary": 1400000.0,
+    "max_salary": 2200000.0,
+    "education_required": "B.Tech / MCA",
+    "certifications_preferred": [
+      "React Certified"
+    ],
+    "description": "Develop scalable web applications with React, Node.js, and Python microservices.",
+    "status": "active"
+  }
+]
