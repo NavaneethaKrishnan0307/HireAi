@@ -6,8 +6,13 @@ from backend.utils.supabase_client import get_supabase
 from backend.utils.file_handler import process_and_upload_resume
 from backend.services.resume_parser import ResumeParser
 from backend.services.candidate_ranker import CandidateRanker
+import uuid
 from backend.models.candidate import CandidateProfileUpdate, ParsedResumeResponse
 from backend.models.application import ApplicationCreate
+try:
+    from backend.services.pipeline_manager import pipeline_manager
+except ImportError:
+    from services.pipeline_manager import pipeline_manager
 
 router = APIRouter(prefix="/candidate", tags=["Candidate"])
 
@@ -431,13 +436,24 @@ def apply_to_job(req: ApplicationCreate, user: Dict[str, Any] = Depends(require_
     app_payload = {
         "job_id": req.job_id,
         "candidate_id": candidate_id,
-        "status": "applied"
+        "status": "applied",
+        "applied_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
     }
     new_app_res = supabase.table("applications").insert(app_payload).execute()
     created_app = new_app_res.data[0] if new_app_res.data else app_payload
+    app_id = created_app.get("id") or str(uuid.uuid4())
+
+    # Register persistent pipeline state
+    pipeline_manager.set_state(
+        app_id=app_id,
+        stage="applied",
+        stage_details={},
+        candidate_id=candidate_id,
+        job_id=req.job_id
+    )
 
     match_payload = {
-        "application_id": created_app.get("id"),
+        "application_id": app_id,
         "job_id": req.job_id,
         "candidate_id": candidate_id,
         "score": match_eval["overall_score"],
@@ -459,24 +475,7 @@ def apply_to_job(req: ApplicationCreate, user: Dict[str, Any] = Depends(require_
 
 
 def _filter_candidate_stage_details(status: str, stage_details: Dict[str, Any]) -> Dict[str, Any]:
-    if not stage_details:
-        return {}
-    filtered = dict(stage_details)
-    norm = str(status).lower()
-    if norm in ["applied", "screened", "rejected"]:
-        filtered.pop("technical_assessment", None)
-        filtered.pop("interview_scheduled", None)
-        filtered.pop("offer_extended", None)
-    elif norm in ["shortlisted"]:
-        filtered.pop("technical_assessment", None)
-        filtered.pop("interview_scheduled", None)
-        filtered.pop("offer_extended", None)
-    elif norm in ["technical_assessment", "assessment"]:
-        filtered.pop("interview_scheduled", None)
-        filtered.pop("offer_extended", None)
-    elif norm in ["interview_scheduled", "interview"]:
-        filtered.pop("offer_extended", None)
-    return filtered
+    return pipeline_manager.filter_stage_details_for_status(status, stage_details)
 
 
 @router.get("/applications")
@@ -485,32 +484,40 @@ def get_my_applications(user: Dict[str, Any] = Depends(require_candidate)):
     user_id = user["sub"]
 
     cand_res = supabase.table("candidates").select("*").eq("user_id", user_id).execute()
-    if not cand_res.data:
-        return []
+    candidate_id = cand_res.data[0]["id"] if cand_res.data else None
 
-    candidate_id = cand_res.data[0]["id"]
-    apps_res = supabase.table("applications").select("*").eq("candidate_id", candidate_id).execute()
-    apps = apps_res.data or []
+    apps = []
+    if candidate_id:
+        apps_res = supabase.table("applications").select("*").eq("candidate_id", candidate_id).execute()
+        apps.extend(apps_res.data or [])
+
+    # Cross-link fallback: Also query applications where candidate_id matches user_id directly
+    apps_by_user = supabase.table("applications").select("*").eq("candidate_id", user_id).execute()
+    for a in (apps_by_user.data or []):
+        if not any(x.get("id") == a.get("id") for x in apps):
+            apps.append(a)
 
     jobs_res = supabase.table("jobs").select("*").execute()
     jobs_map = {j["id"]: j for j in (jobs_res.data or [])}
 
     results = []
     for app in apps:
-        job = jobs_map.get(app.get("job_id"), {})
-        status = app.get("status", "applied")
-        raw_details = app.get("stage_details") or {}
+        app_enriched = pipeline_manager.enrich_application(app)
+        job = jobs_map.get(app_enriched.get("job_id"), {})
+        status = app_enriched.get("status", "applied")
+        stage_details = app_enriched.get("stage_details") or {}
         results.append({
-            "id": app.get("id"),
-            "job_id": app.get("job_id"),
+            "id": app_enriched.get("id"),
+            "job_id": app_enriched.get("job_id"),
             "job_title": job.get("title", "Software Developer"),
             "company": job.get("company", "TechCorp Solutions"),
             "location": job.get("location", "Bangalore"),
             "status": status,
-            "applied_at": app.get("applied_at", "2025-07-20T10:00:00Z"),
+            "stage": status,
+            "applied_at": app_enriched.get("applied_at", "2025-07-20T10:00:00Z"),
             "min_salary": job.get("min_salary", 0),
             "max_salary": job.get("max_salary", 0),
-            "stage_details": _filter_candidate_stage_details(status, raw_details)
+            "stage_details": stage_details
         })
 
     return results

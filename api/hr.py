@@ -7,12 +7,17 @@ from backend.api.auth import require_hr
 from backend.utils.supabase_client import get_supabase
 from backend.services.candidate_ranker import CandidateRanker
 from backend.models.job import JobCreate, JobUpdate, JobSearchQuery
+import uuid
 from backend.models.application import (
     ApplicationStatusUpdate, 
     CandidateStatusUpdate,
     PipelineMoveRequest,
     StageDetailsUpdateRequest
 )
+try:
+    from backend.services.pipeline_manager import pipeline_manager, STAGE_TO_DB_STATUS
+except ImportError:
+    from services.pipeline_manager import pipeline_manager, STAGE_TO_DB_STATUS
 
 router = APIRouter(prefix="/hr", tags=["HR"])
 
@@ -383,12 +388,20 @@ def update_application_status(
     user: Dict[str, Any] = Depends(require_hr)
 ):
     supabase = get_supabase()
-    res = supabase.table("applications").update({"status": req.status}).eq("id", application_id).execute()
-    if not res.data:
+    app_res = supabase.table("applications").select("*").eq("id", application_id).execute()
+    if not app_res.data:
         raise HTTPException(status_code=404, detail="Application not found")
+    current_app = app_res.data[0]
+    updated = pipeline_manager.safe_update_supabase(
+        supabase=supabase,
+        app_id=application_id,
+        target_stage=req.status,
+        candidate_id=current_app.get("candidate_id"),
+        job_id=current_app.get("job_id")
+    )
     return {
         "message": f"Application status updated to {req.status}",
-        "application": res.data[0]
+        "application": updated
     }
 
 
@@ -416,20 +429,43 @@ def update_candidate_status_by_id(
     
     # 2. Check if application already exists for this (candidate, job) pair
     app_res = supabase.table("applications").select("*").eq("candidate_id", candidate_id).eq("job_id", job_id).execute()
+    if not app_res.data:
+        c_check = supabase.table("candidates").select("id").eq("user_id", candidate_id).execute()
+        if c_check.data:
+            real_cid = c_check.data[0]["id"]
+            app_res = supabase.table("applications").select("*").eq("candidate_id", real_cid).eq("job_id", job_id).execute()
     
     if app_res.data and len(app_res.data) > 0:
         app_id = app_res.data[0]["id"]
-        res = supabase.table("applications").update({"status": req.status}).eq("id", app_id).execute()
-        updated_app = res.data[0] if res.data else app_res.data[0]
+        updated_app = pipeline_manager.safe_update_supabase(
+            supabase=supabase,
+            app_id=app_id,
+            target_stage=req.status,
+            candidate_id=candidate_id,
+            job_id=job_id
+        )
     else:
+        db_status = STAGE_TO_DB_STATUS.get(req.status, "applied")
         new_app = {
             "job_id": job_id,
             "candidate_id": candidate_id,
-            "status": req.status,
+            "status": db_status,
             "applied_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
         }
-        res = supabase.table("applications").insert(new_app).execute()
-        updated_app = res.data[0] if res.data else new_app
+        try:
+            res = supabase.table("applications").insert(new_app).execute()
+            created = res.data[0] if res.data else new_app
+        except Exception:
+            created = new_app
+        
+        app_id = created.get("id") or str(uuid.uuid4())
+        updated_app = pipeline_manager.safe_update_supabase(
+            supabase=supabase,
+            app_id=app_id,
+            target_stage=req.status,
+            candidate_id=candidate_id,
+            job_id=job_id
+        )
         
     return {
         "message": f"Candidate status updated to {req.status}",
@@ -507,11 +543,12 @@ def get_hr_pipeline(
     }
     
     for app in apps:
-        cid = str(app.get("candidate_id") or "")
+        app_enriched = pipeline_manager.enrich_application(app)
+        cid = str(app_enriched.get("candidate_id") or "")
         cand = cands_map.get(cid) or next((c for c in (cands_res.data or []) if str(c.get("id")) == cid or str(c.get("user_id")) == cid), {})
         
         enriched_cand = _enrich_candidate(cand, users_map)
-        target_job = jobs_map.get(app.get("job_id")) or active_job or {
+        target_job = jobs_map.get(app_enriched.get("job_id")) or active_job or {
             "title": "Software Engineer",
             "required_skills": ["Python", "SQL"],
             "min_experience": 2.0
@@ -519,33 +556,20 @@ def get_hr_pipeline(
         
         match_details = CandidateRanker.calculate_candidate_match(enriched_cand, target_job)
         
-        # Raw status normalized to one of the 6 stages
-        raw_status = str(app.get("status") or "applied").lower()
-        if raw_status in ["applied", "screened", "new"]:
-            stage_key = "applied"
-        elif raw_status in ["shortlisted", "reviewed"]:
-            stage_key = "shortlisted"
-        elif raw_status in ["technical_assessment", "assessment", "coding_round"]:
-            stage_key = "technical_assessment"
-        elif raw_status in ["interview_scheduled", "interview", "interviewing"]:
-            stage_key = "interview_scheduled"
-        elif raw_status in ["offer_extended", "hired", "offer"]:
-            stage_key = "offer_extended"
-        elif raw_status in ["rejected", "archived", "declined"]:
-            stage_key = "rejected"
-        else:
+        stage_key = app_enriched.get("stage") or "applied"
+        if stage_key not in stages:
             stage_key = "applied"
             
         stages[stage_key].append({
-            "application_id": app.get("id"),
+            "application_id": app_enriched.get("id"),
             "candidate_id": cand.get("id") or cid,
-            "job_id": app.get("job_id"),
+            "job_id": app_enriched.get("job_id"),
             "job_title": target_job.get("title", "Engineering"),
             "company": target_job.get("company", "TechCorp"),
             "stage": stage_key,
-            "status": app.get("status"),
-            "stage_details": app.get("stage_details") or {},
-            "applied_at": app.get("applied_at"),
+            "status": stage_key,
+            "stage_details": app_enriched.get("stage_details") or {},
+            "applied_at": app_enriched.get("applied_at"),
             "candidate": enriched_cand,
             "match_score": match_details["overall_score"],
             "match_details": match_details,
@@ -565,27 +589,6 @@ def get_hr_pipeline(
     }
 
 
-def _filter_stage_details_for_status(status: str, stage_details: Dict[str, Any]) -> Dict[str, Any]:
-    if not stage_details:
-        return {}
-    filtered = dict(stage_details)
-    norm = str(status).lower()
-    if norm in ["applied", "screened", "rejected"]:
-        filtered.pop("technical_assessment", None)
-        filtered.pop("interview_scheduled", None)
-        filtered.pop("offer_extended", None)
-    elif norm in ["shortlisted"]:
-        filtered.pop("technical_assessment", None)
-        filtered.pop("interview_scheduled", None)
-        filtered.pop("offer_extended", None)
-    elif norm in ["technical_assessment", "assessment"]:
-        filtered.pop("interview_scheduled", None)
-        filtered.pop("offer_extended", None)
-    elif norm in ["interview_scheduled", "interview"]:
-        filtered.pop("offer_extended", None)
-    return filtered
-
-
 @router.post("/pipeline/move")
 def move_pipeline_stage(
     req: PipelineMoveRequest,
@@ -596,19 +599,21 @@ def move_pipeline_stage(
     """
     supabase = get_supabase()
     
-    update_data: Dict[str, Any] = {"status": req.target_stage}
-    
     if req.application_id:
         app_res = supabase.table("applications").select("*").eq("id", req.application_id).execute()
         current_app = app_res.data[0] if app_res.data else {}
-        existing_details = current_app.get("stage_details") or {}
-        combined_details = {**existing_details, **(req.stage_details or {})}
-        update_data["stage_details"] = _filter_stage_details_for_status(req.target_stage, combined_details)
-            
-        res = supabase.table("applications").update(update_data).eq("id", req.application_id).execute()
-        if not res.data:
-            raise HTTPException(status_code=404, detail="Application not found")
-        return {"message": f"Moved to {req.target_stage}", "application": res.data[0]}
+        cid = current_app.get("candidate_id") or req.candidate_id
+        jid = current_app.get("job_id") or req.job_id
+        
+        updated = pipeline_manager.safe_update_supabase(
+            supabase=supabase,
+            app_id=req.application_id,
+            target_stage=req.target_stage,
+            stage_details=req.stage_details,
+            candidate_id=cid,
+            job_id=jid
+        )
+        return {"message": f"Moved to {req.target_stage}", "application": updated}
     
     if req.candidate_id:
         target_job = req.job_id
@@ -617,27 +622,51 @@ def move_pipeline_stage(
             if jobs_res.data:
                 target_job = jobs_res.data[0]["id"]
         
-        # Check application
+        # Check application by candidate_id or user_id
         app_res = supabase.table("applications").select("*").eq("candidate_id", req.candidate_id).execute()
-        if app_res.data:
-            app_id = app_res.data[0]["id"]
-            current_app = app_res.data[0]
-            existing_details = current_app.get("stage_details") or {}
-            combined_details = {**existing_details, **(req.stage_details or {})}
-            update_data["stage_details"] = _filter_stage_details_for_status(req.target_stage, combined_details)
-                
-            res = supabase.table("applications").update(update_data).eq("id", app_id).execute()
-            return {"message": f"Moved to {req.target_stage}", "application": res.data[0]}
+        current_app = app_res.data[0] if app_res.data else None
+        if not current_app:
+            c_check = supabase.table("candidates").select("id").eq("user_id", req.candidate_id).execute()
+            if c_check.data:
+                real_cid = c_check.data[0]["id"]
+                app_res = supabase.table("applications").select("*").eq("candidate_id", real_cid).execute()
+                current_app = app_res.data[0] if app_res.data else None
+        
+        if current_app:
+            app_id = current_app.get("id")
+            updated = pipeline_manager.safe_update_supabase(
+                supabase=supabase,
+                app_id=app_id,
+                target_stage=req.target_stage,
+                stage_details=req.stage_details,
+                candidate_id=req.candidate_id,
+                job_id=current_app.get("job_id") or target_job
+            )
+            return {"message": f"Moved to {req.target_stage}", "application": updated}
         else:
+            db_status = STAGE_TO_DB_STATUS.get(req.target_stage, "applied")
             new_app = {
                 "job_id": target_job,
                 "candidate_id": req.candidate_id,
-                "status": req.target_stage,
-                "stage_details": _filter_stage_details_for_status(req.target_stage, req.stage_details or {}),
+                "status": db_status,
                 "applied_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
             }
-            res = supabase.table("applications").insert(new_app).execute()
-            return {"message": f"Candidate added to {req.target_stage}", "application": res.data[0] if res.data else new_app}
+            try:
+                res = supabase.table("applications").insert(new_app).execute()
+                created = res.data[0] if res.data else new_app
+            except Exception:
+                created = new_app
+            
+            app_id = created.get("id") or str(uuid.uuid4())
+            updated = pipeline_manager.safe_update_supabase(
+                supabase=supabase,
+                app_id=app_id,
+                target_stage=req.target_stage,
+                stage_details=req.stage_details,
+                candidate_id=req.candidate_id,
+                job_id=target_job
+            )
+            return {"message": f"Candidate added to {req.target_stage}", "application": updated}
 
     raise HTTPException(status_code=400, detail="Missing application_id or candidate_id")
 
@@ -657,15 +686,17 @@ def update_application_stage_details(
         raise HTTPException(status_code=404, detail="Application not found")
 
     current_app = app_res.data[0]
-    existing_details = current_app.get("stage_details") or {}
-    updated_details = {**existing_details, **req.stage_details}
+    target_stage = req.target_stage or current_app.get("status") or "technical_assessment"
 
-    update_payload: Dict[str, Any] = {"stage_details": updated_details}
-    if req.target_stage:
-        update_payload["status"] = req.target_stage
-
-    res = supabase.table("applications").update(update_payload).eq("id", application_id).execute()
+    updated = pipeline_manager.safe_update_supabase(
+        supabase=supabase,
+        app_id=application_id,
+        target_stage=target_stage,
+        stage_details=req.stage_details,
+        candidate_id=current_app.get("candidate_id"),
+        job_id=current_app.get("job_id")
+    )
     return {
         "message": "Application stage details saved successfully",
-        "application": res.data[0] if res.data else current_app
+        "application": updated
     }
