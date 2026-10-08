@@ -7,7 +7,9 @@ import MatchModal from '../components/MatchModal';
 export default function JobFindPage() {
   const navigate = useNavigate();
   const [candidates, setCandidates] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
 
   // Form State
@@ -26,38 +28,65 @@ export default function JobFindPage() {
 
   const loadMatches = async () => {
     try {
-      setLoading(true);
+      setInitialLoading(true);
       const data = await HRAPI.getDashboard();
       setCandidates(data.top_matches || []);
     } catch (err) {
       console.error(err);
       setCandidates([]);
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
   const handleSearch = async (e) => {
     e?.preventDefault();
+    let minExp = null;
+    let maxExp = null;
+    if (experience === '0-2') {
+      minExp = 0.0;
+      maxExp = 2.0;
+    } else if (experience === '3-5') {
+      minExp = 3.0;
+      maxExp = 5.0;
+    } else if (experience === '5+') {
+      minExp = 5.0;
+      maxExp = null;
+    }
+
+    setIsSearching(true);
     try {
-      setLoading(true);
-      const minExp = experience === '0-2' ? 1.0 : experience === '3-5' ? 3.0 : experience === '5+' ? 5.0 : 0.0;
       const res = await HRAPI.searchCandidates({
-        skills,
-        location,
+        skills: skills.trim(),
+        location: location.trim(),
         min_experience: minExp,
-        min_salary: parseFloat(minSalary) || 0,
-        max_salary: parseFloat(maxSalary) || 0,
-        education,
-        title: jobTitle,
-        certifications
+        max_experience: maxExp,
+        min_salary: minSalary ? parseFloat(minSalary) : null,
+        max_salary: maxSalary ? parseFloat(maxSalary) : null,
+        education: education.trim(),
+        title: jobTitle.trim(),
+        certifications: certifications.trim()
       });
       setCandidates(res.results || []);
+      setHasSearched(true);
     } catch (err) {
       alert(err.message || 'Search failed');
     } finally {
-      setLoading(false);
+      setIsSearching(false);
     }
+  };
+
+  const handleClearFilters = () => {
+    setSkills('');
+    setLocation('');
+    setExperience('');
+    setMinSalary('');
+    setMaxSalary('');
+    setEducation('');
+    setJobTitle('');
+    setCertifications('');
+    setHasSearched(false);
+    loadMatches();
   };
 
   return (
@@ -173,10 +202,35 @@ export default function JobFindPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-            <button type="submit" className="find-candidates-btn" disabled={loading}>
-              <Search size={16} />
-              <span>{loading ? 'Evaluating Rules...' : 'Find Candidates'}</span>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
+            {hasSearched && (
+              <button 
+                type="button" 
+                onClick={handleClearFilters}
+                className="view-all-outline-btn"
+                style={{ height: '44px', padding: '0 20px', borderRadius: '8px', fontSize: '13px', fontWeight: 600 }}
+              >
+                Clear Filters
+              </button>
+            )}
+            <button 
+              type="submit" 
+              className="find-candidates-btn" 
+              disabled={isSearching}
+              style={{
+                opacity: isSearching ? 0.85 : 1,
+                minWidth: '160px',
+                justifyContent: 'center',
+                cursor: isSearching ? 'default' : 'pointer'
+              }}
+            >
+              <Search 
+                size={16} 
+                style={{ 
+                  animation: isSearching ? 'hrSpin 0.9s linear infinite' : 'none' 
+                }} 
+              />
+              <span>{isSearching ? 'Filtering...' : 'Find Candidates'}</span>
             </button>
           </div>
         </form>
@@ -185,7 +239,16 @@ export default function JobFindPage() {
       {/* Top Candidate Matches Section */}
       <section className="matches-section">
         <div className="matches-header">
-          <h3 className="matches-title">Top Candidate Matches</h3>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <h3 className="matches-title">
+              {hasSearched ? `Filtered Results (${candidates.length})` : 'Top Candidate Matches'}
+            </h3>
+            {hasSearched && (
+              <span style={{ fontSize: '12px', color: '#10b981', fontWeight: 600, background: '#ecfdf5', padding: '2px 8px', borderRadius: '12px' }}>
+                Active Filter
+              </span>
+            )}
+          </div>
           {candidates.length > 0 && (
             <span className="view-all-link" onClick={() => navigate('/candidates')}>
               View All Candidates <ArrowRight size={14} />
@@ -193,16 +256,40 @@ export default function JobFindPage() {
           )}
         </div>
 
-        {loading ? (
-          <p style={{ color: '#64748b', padding: '20px 0', textAlign: 'center' }}>Searching candidate database...</p>
+        {initialLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
+            <p style={{ fontSize: '13px' }}>Loading candidate database...</p>
+          </div>
         ) : candidates.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: '#64748b' }}>
             <UserX size={40} color="#cbd5e1" style={{ margin: '0 auto 12px auto' }} />
-            <h4 style={{ fontSize: '15px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>No Candidates Found</h4>
-            <p style={{ fontSize: '13px' }}>The database is currently empty. As candidates register and upload resumes, they will be evaluated and ranked here.</p>
+            <h4 style={{ fontSize: '15px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+              {hasSearched ? 'No Matching Candidates' : 'No Candidates Found'}
+            </h4>
+            <p style={{ fontSize: '13px', maxWidth: '440px', margin: '0 auto 16px auto' }}>
+              {hasSearched
+                ? 'No candidates meet all specified constraints. Try broadening your criteria or clearing filters.'
+                : 'The database is currently empty. As candidates register and upload resumes, they will be evaluated and ranked here.'}
+            </p>
+            {hasSearched && (
+              <button 
+                type="button" 
+                onClick={handleClearFilters}
+                className="view-all-outline-btn"
+                style={{ margin: '0 auto' }}
+              >
+                Reset All Filters
+              </button>
+            )}
           </div>
         ) : (
-          <>
+          <div 
+            style={{ 
+              opacity: isSearching ? 0.6 : 1, 
+              pointerEvents: isSearching ? 'none' : 'auto', 
+              transition: 'opacity 0.2s ease-in-out' 
+            }}
+          >
             <table className="candidates-table">
               <thead>
                 <tr>
@@ -257,7 +344,7 @@ export default function JobFindPage() {
                 View All Candidates
               </button>
             </div>
-          </>
+          </div>
         )}
       </section>
 

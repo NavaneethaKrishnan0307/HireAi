@@ -263,6 +263,11 @@
   background-color: #059669;
 }
 
+@keyframes hrSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 /* Top Candidate Matches Section */
 .matches-section {
   background-color: #ffffff;

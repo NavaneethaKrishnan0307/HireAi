@@ -113,18 +113,106 @@ def search_candidates(query: JobSearchQuery, user: Dict[str, Any] = Depends(requ
     users_res = supabase.table("users").select("*").execute()
     user_map = {str(u["id"]): u for u in (users_res.data or []) if "id" in u}
 
-    enriched = []
+    filtered = []
     for cand in candidates:
         c = _enrich_candidate(cand, user_map)
         
-        # Location filter if specified
+        # 1. Location hard filter (if specified)
         if query.location and query.location.strip():
             cand_loc = str(c.get("location", "")).lower()
             query_locs = [l.strip().lower() for l in query.location.split(",") if l.strip()]
             if not any(ql in cand_loc for ql in query_locs):
                 continue
-        
-        enriched.append(c)
+
+        # 2. Minimum experience hard filter (if specified)
+        if query.min_experience is not None and query.min_experience > 0:
+            cand_exp = float(c.get("years_of_experience") or 0.0)
+            if cand_exp < query.min_experience:
+                continue
+
+        # 3. Maximum experience hard filter (if specified)
+        if query.max_experience is not None and query.max_experience > 0:
+            cand_exp = float(c.get("years_of_experience") or 0.0)
+            if cand_exp > query.max_experience:
+                continue
+
+        # 4. Skills hard filter (if specified, candidate MUST have matching skills)
+        if query.skills and query.skills.strip():
+            req_skills = [s.strip().lower() for s in query.skills.split(",") if s.strip()]
+            cand_skills_raw = c.get("parsed_skills") or []
+            if isinstance(cand_skills_raw, str):
+                import json
+                try:
+                    cand_skills_raw = json.loads(cand_skills_raw)
+                except Exception:
+                    cand_skills_raw = [cand_skills_raw]
+            cand_skills_lower = [str(s).strip().lower() for s in cand_skills_raw if s]
+            
+            has_matching_skill = False
+            for rs in req_skills:
+                if any(rs in cs or cs in rs for cs in cand_skills_lower):
+                    has_matching_skill = True
+                    break
+            if not has_matching_skill:
+                continue
+
+        # 5. Education hard filter (if specified and not 'Any Graduate')
+        if query.education and query.education.strip():
+            edu_query = query.education.strip().lower()
+            if edu_query not in ["any graduate", "any", "all", "select education"]:
+                cand_edu = str(c.get("education") or "").strip()
+                if not cand_edu:
+                    continue
+                import re
+                def _norm_deg(text: str) -> str:
+                    t = text.lower()
+                    t = re.sub(r'b\s*\.?\s*tech', 'btech', t)
+                    t = re.sub(r'b\s*\.?\s*e\b', 'be', t)
+                    t = re.sub(r'b\s*\.?\s*sc', 'bsc', t)
+                    t = re.sub(r'm\s*\.?\s*tech', 'mtech', t)
+                    t = re.sub(r'm\s*\.?\s*e\b', 'me', t)
+                    t = re.sub(r'm\s*\.?\s*s\b', 'ms', t)
+                    t = re.sub(r'm\s*\.?\s*c\s*\.?\s*a', 'mca', t)
+                    return t
+
+                cand_norm = _norm_deg(cand_edu)
+                query_norm = _norm_deg(edu_query)
+                cand_tokens = set(re.findall(r'\b[a-z0-9]+\b', cand_norm))
+                query_tokens = set(re.findall(r'\b[a-z0-9]+\b', query_norm))
+
+                ug_set = {'btech', 'be', 'bsc', 'bachelor'}
+                pg_set = {'mca', 'mtech', 'ms', 'me', 'master'}
+
+                if query_tokens & ug_set:
+                    if not (cand_tokens & ug_set):
+                        continue
+                elif query_tokens & pg_set:
+                    if not (cand_tokens & pg_set):
+                        continue
+                elif not (cand_tokens & query_tokens):
+                    continue
+
+        # 6. Title / Role hard filter (if specified)
+        if query.title and query.title.strip():
+            title_query = query.title.strip().lower()
+            cand_title = str(c.get("current_title") or "").lower()
+            cand_skills_str = " ".join([str(s).lower() for s in (c.get("parsed_skills") or [])])
+            query_words = [w for w in title_query.split() if len(w) > 2]
+            if query_words:
+                if not any(w in cand_title or w in cand_skills_str for w in query_words):
+                    continue
+
+        # 7. Certifications hard filter (if specified)
+        if query.certifications and query.certifications.strip():
+            req_certs = [cr.strip().lower() for cr in query.certifications.split(",") if cr.strip()]
+            parsed_data = c.get("parsed_data") or {}
+            cand_certs = parsed_data.get("certifications", []) if isinstance(parsed_data, dict) else []
+            cand_certs_str = " ".join([str(x).lower() for x in cand_certs])
+            cand_resume_text = str(c.get("resume_text") or "").lower()
+            if not any(rc in cand_certs_str or rc in cand_resume_text for rc in req_certs):
+                continue
+
+        filtered.append(c)
 
     # Formulate pseudo-job from HR search criteria
     search_job_spec = {
@@ -142,7 +230,10 @@ def search_candidates(query: JobSearchQuery, user: Dict[str, Any] = Depends(requ
         "additional": float(query.weight_additional or 0.10)
     }
 
-    ranked_results = CandidateRanker.rank_candidates(enriched, search_job_spec, custom_weights=custom_weights)
+    if not filtered:
+        ranked_results = []
+    else:
+        ranked_results = CandidateRanker.rank_candidates(filtered, search_job_spec, custom_weights=custom_weights)
 
     return {
         "query": query.model_dump(),
