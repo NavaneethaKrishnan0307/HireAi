@@ -1,13 +1,18 @@
 import React from 'react';
-import { Users, User } from 'lucide-react';
+import { Users } from 'lucide-react';
+import ProfileDropdown from './ProfileDropdown';
+import { HRAPI } from '../services/api';
 
 export default function Header({ user }) {
-  const displayName = user?.full_name || 'HR Recruiter';
   const companyName = user?.company_name || 
     (user?.email?.toLowerCase().includes('ghr@') || user?.email?.toLowerCase().includes('google') ? 'Google' :
      user?.email?.toLowerCase().includes('azhr@') || user?.email?.toLowerCase().includes('azenture') ? 'AZENTURE' :
      user?.email?.toLowerCase().includes('techcorp') || user?.email?.toLowerCase().includes('sarah') ? 'TechCorp Solutions' :
      'Google');
+
+  const handleLogout = () => {
+    HRAPI.logout();
+  };
 
   return (
     <header className="hr-header">
@@ -49,14 +54,7 @@ export default function Header({ user }) {
           </span>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '14px', fontWeight: '600', color: '#0f172a' }}>
-            {displayName}
-          </span>
-          <div className="hr-avatar" style={{ backgroundColor: '#f1f5f9', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '38px', height: '38px', borderRadius: '50%' }}>
-            <User size={20} />
-          </div>
-        </div>
+        <ProfileDropdown user={user} companyName={companyName} onLogout={handleLogout} />
       </div>
     </header>
   );
