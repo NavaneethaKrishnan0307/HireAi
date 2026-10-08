@@ -24,8 +24,10 @@ import {
 import { CandidateAPI } from '../services/api';
 import { COUNTRY_CODES, parsePhoneNumber } from '../constants/countryCodes';
 import CustomSearchableDropdown from '../components/CustomSearchableDropdown';
+import { useLanguage } from '../utils/i18n';
 
 export default function UploadResumePage() {
+  const { t } = useLanguage();
   const getUserProfileKey = () => {
     try {
       const user = JSON.parse(localStorage.getItem('candidate_user') || '{}');
@@ -293,9 +295,9 @@ export default function UploadResumePage() {
     <div className="content-area">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
         <div>
-          <h2 className="page-title" style={{ margin: 0 }}>Upload Your Resume</h2>
+          <h2 className="page-title" style={{ margin: 0 }}>{t('uploadYourResume')}</h2>
           <p className="page-subtitle" style={{ margin: '4px 0 0 0' }}>
-            Upload your resume in PDF or DOCX format and get matched with suitable job opportunities.
+            {t('uploadSubtitle')}
           </p>
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
@@ -304,14 +306,14 @@ export default function UploadResumePage() {
             className="choose-btn" 
             style={{ margin: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#2563eb' }}
           >
-            <Edit3 size={15} /> Modify Profile
+            <Edit3 size={15} /> {t('modifyProfile')}
           </Link>
           <Link 
             to="/report" 
             className="choose-btn" 
             style={{ margin: 0, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', backgroundColor: '#0f172a' }}
           >
-            <Sparkles size={15} /> View AI Report
+            <Sparkles size={15} /> {t('aiReportBtn')}
           </Link>
         </div>
       </div>
@@ -450,14 +452,14 @@ export default function UploadResumePage() {
 
       {/* How it Works Section */}
       <section className="how-it-works-section">
-        <h3 className="section-heading">How it Works</h3>
+        <h3 className="section-heading">{t('howItWorks')}</h3>
         <div className="steps-flow">
           <div className="step-card">
             <div className="step-icon-bubble bubble-blue">
               <FileUp size={22} />
             </div>
-            <h4 className="step-title">1. Upload Resume</h4>
-            <p className="step-desc">Upload your resume file</p>
+            <h4 className="step-title">{t('step1Title')}</h4>
+            <p className="step-desc">{t('step1Desc')}</p>
           </div>
 
           <ArrowRight size={18} className="step-arrow" />
@@ -466,8 +468,8 @@ export default function UploadResumePage() {
             <div className="step-icon-bubble bubble-purple">
               <Search size={22} />
             </div>
-            <h4 className="step-title">2. Extract Information</h4>
-            <p className="step-desc">We extract and parse your data</p>
+            <h4 className="step-title">{t('step2Title')}</h4>
+            <p className="step-desc">{t('step2Desc')}</p>
           </div>
 
           <ArrowRight size={18} className="step-arrow" />
@@ -476,8 +478,8 @@ export default function UploadResumePage() {
             <div className="step-icon-bubble bubble-green">
               <Database size={22} />
             </div>
-            <h4 className="step-title">3. Stored Securely</h4>
-            <p className="step-desc">Your data is stored in our database</p>
+            <h4 className="step-title">{t('step3Title')}</h4>
+            <p className="step-desc">{t('step3Desc')}</p>
           </div>
 
           <ArrowRight size={18} className="step-arrow" />
@@ -486,8 +488,8 @@ export default function UploadResumePage() {
             <div className="step-icon-bubble bubble-orange">
               <Star size={22} />
             </div>
-            <h4 className="step-title">4. Get Matched</h4>
-            <p className="step-desc">We match you with relevant jobs</p>
+            <h4 className="step-title">{t('step4Title')}</h4>
+            <p className="step-desc">{t('step4Desc')}</p>
           </div>
         </div>
       </section>
@@ -495,7 +497,7 @@ export default function UploadResumePage() {
       {/* Recent Uploads Section */}
       <section className="recent-uploads-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-          <h3 className="section-heading" style={{ margin: 0 }}>Recent Uploads</h3>
+          <h3 className="section-heading" style={{ margin: 0 }}>{t('recentUploads')}</h3>
         </div>
         {hasResume ? (
           <div className="upload-file-card">
@@ -503,7 +505,7 @@ export default function UploadResumePage() {
               <FileText size={32} className="file-icon" />
               <div>
                 <h4 className="filename-title">{recentFilename}</h4>
-                <p className="file-date">Processed & Ready for Matching</p>
+                <p className="file-date">{t('processedReady')}</p>
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -551,8 +553,8 @@ export default function UploadResumePage() {
       <div className="safe-banner">
         <ShieldCheck size={28} className="safe-icon" />
         <div>
-          <h4 className="safe-title">Your Data is Safe</h4>
-          <p className="safe-subtitle">We ensure the security and privacy of your data.</p>
+          <h4 className="safe-title">{t('yourDataIsSafe')}</h4>
+          <p className="safe-subtitle">{t('safeSubtitle')}</p>
         </div>
       </div>
 

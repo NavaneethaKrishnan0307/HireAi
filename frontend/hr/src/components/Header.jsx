@@ -2,8 +2,11 @@ import React from 'react';
 import { Users } from 'lucide-react';
 import ProfileDropdown from './ProfileDropdown';
 import { HRAPI } from '../services/api';
+import { useLanguage } from '../utils/i18n';
 
 export default function Header({ user }) {
+  const { t } = useLanguage();
+
   const companyName = user?.company_name || 
     (user?.email?.toLowerCase().includes('ghr@') || user?.email?.toLowerCase().includes('google') ? 'Google' :
      user?.email?.toLowerCase().includes('azhr@') || user?.email?.toLowerCase().includes('azenture') ? 'AZENTURE' :
@@ -20,7 +23,7 @@ export default function Header({ user }) {
         <div className="hr-brand-icon">
           <Users size={28} strokeWidth={2.4} />
         </div>
-        <h1 className="hr-brand-title">HR Dashboard</h1>
+        <h1 className="hr-brand-title">{t('appNameHR')}</h1>
       </div>
 
       <div className="hr-header-user" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>

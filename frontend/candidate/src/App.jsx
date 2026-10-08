@@ -67,7 +67,7 @@ function ProtectedLayout({ children }) {
       <Header user={user} />
       <div className="main-wrapper">
         <Sidebar />
-        <main style={{ flex: 1, backgroundColor: '#f8fafc', overflowY: 'auto' }}>
+        <main style={{ flex: 1, backgroundColor: 'var(--bg-page)', overflowY: 'auto' }}>
           <ErrorBoundary>
             {children}
           </ErrorBoundary>

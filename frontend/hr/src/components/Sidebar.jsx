@@ -2,8 +2,11 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { Plus, Briefcase, Users, Folder, Settings, LogOut, Columns } from 'lucide-react';
 import { HRAPI } from '../services/api';
+import { useLanguage } from '../utils/i18n';
 
 export default function Sidebar() {
+  const { t } = useLanguage();
+
   const handleLogout = () => {
     HRAPI.logout();
     window.location.href = '/login';
@@ -17,7 +20,7 @@ export default function Sidebar() {
           className={({ isActive }) => `hr-nav-item create-job ${isActive ? 'active' : ''}`}
         >
           <Plus size={18} strokeWidth={2.5} />
-          <span>Create Job</span>
+          <span>{t('navCreateJob')}</span>
         </NavLink>
 
         <NavLink
@@ -25,7 +28,7 @@ export default function Sidebar() {
           className={({ isActive }) => `hr-nav-item ${isActive ? 'active' : ''}`}
         >
           <Columns size={18} />
-          <span>Hiring Pipeline</span>
+          <span>{t('navHiringPipeline')}</span>
         </NavLink>
 
         <NavLink
@@ -33,7 +36,7 @@ export default function Sidebar() {
           className={({ isActive }) => `hr-nav-item ${isActive ? 'active' : ''}`}
         >
           <Briefcase size={18} />
-          <span>Job Find</span>
+          <span>{t('navJobFind')}</span>
         </NavLink>
 
         <NavLink
@@ -41,7 +44,7 @@ export default function Sidebar() {
           className={({ isActive }) => `hr-nav-item ${isActive ? 'active' : ''}`}
         >
           <Users size={18} />
-          <span>Candidate Matches</span>
+          <span>{t('navCandidateMatches')}</span>
         </NavLink>
 
         <NavLink
@@ -49,7 +52,7 @@ export default function Sidebar() {
           className={({ isActive }) => `hr-nav-item ${isActive ? 'active' : ''}`}
         >
           <Folder size={18} />
-          <span>All Candidates</span>
+          <span>{t('navAllCandidates')}</span>
         </NavLink>
 
         <NavLink
@@ -57,14 +60,14 @@ export default function Sidebar() {
           className={({ isActive }) => `hr-nav-item ${isActive ? 'active' : ''}`}
         >
           <Settings size={18} />
-          <span>Settings</span>
+          <span>{t('navSettings')}</span>
         </NavLink>
       </nav>
 
       <div className="hr-sidebar-bottom">
         <div className="hr-nav-item logout" onClick={handleLogout}>
           <LogOut size={18} />
-          <span>Logout</span>
+          <span>{t('navLogout')}</span>
         </div>
       </div>
     </aside>

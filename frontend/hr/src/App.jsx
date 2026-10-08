@@ -35,7 +35,7 @@ function ProtectedLayout({ children }) {
       <Header user={currentUser} />
       <div className="hr-main-wrapper">
         <Sidebar />
-        <main style={{ flex: 1, backgroundColor: '#f8fafc', overflowY: 'auto' }}>
+        <main style={{ flex: 1, backgroundColor: 'var(--bg-page)', overflowY: 'auto' }}>
           {children}
         </main>
       </div>

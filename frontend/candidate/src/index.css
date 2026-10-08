@@ -159,3 +159,29 @@ a {
 [data-theme="dark"] .step-desc {
   color: #94a3b8 !important;
 }
+
+[data-theme="dark"] .dropzone-container {
+  background-color: #1e293b !important;
+  border-color: #334155 !important;
+}
+
+[data-theme="dark"] .dropzone-container:hover,
+[data-theme="dark"] .dropzone-container.drag-over {
+  background-color: #1e293b !important;
+  border-color: #3b82f6 !important;
+}
+
+[data-theme="dark"] .dropzone-text {
+  color: #f8fafc !important;
+}
+
+[data-theme="dark"] .main-wrapper,
+[data-theme="dark"] .content-area {
+  background-color: var(--bg-page) !important;
+}
+
+[data-theme="dark"] .badge-processed {
+  background-color: rgba(16, 185, 129, 0.15) !important;
+  border-color: rgba(16, 185, 129, 0.3) !important;
+  color: #34d399 !important;
+}

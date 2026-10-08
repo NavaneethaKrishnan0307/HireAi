@@ -334,35 +334,7 @@ export default function ProfileDropdown({ user, onLogout }) {
             </Link>
           </div>
 
-          {/* Section 3: Switch Portal */}
-          <div style={{ padding: '6px 0', borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
-            <a
-              href="http://localhost:5174"
-              target="_blank"
-              rel="noreferrer"
-              className="dropdown-item"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '9px 18px',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-main, #334155)',
-                textDecoration: 'none'
-              }}
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <ArrowRightLeft size={16} color="#0284c7" />
-                <span>{t('switchPortal')}</span>
-              </span>
-              <span style={{ fontSize: '10px', backgroundColor: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                PORT 5174
-              </span>
-            </a>
-          </div>
-
-          {/* Section 4: Preferences (Appearance, Language, Sound) */}
+          {/* Section 3: Preferences (Appearance, Language, Sound) */}
           <div style={{ padding: '8px 18px', borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
             {/* Theme Toggle */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
@@ -735,13 +707,9 @@ export default function ProfileDropdown({ user, onLogout }) {
                 <span>Toggle Dark / Light Theme</span>
                 <kbd style={{ padding: '2px 6px', background: '#e2e8f0', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>Alt + T</kbd>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', padding: '10px 0', borderBottom: '1px solid var(--border-color, #e2e8f0)' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', padding: '10px 0' }}>
                 <span>Close Modals / Menus</span>
                 <kbd style={{ padding: '2px 6px', background: '#e2e8f0', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>Esc</kbd>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', padding: '10px 0' }}>
-                <span>Switch Portal (Candidate &lt;-&gt; HR)</span>
-                <kbd style={{ padding: '2px 6px', background: '#e2e8f0', borderRadius: '4px', fontSize: '11px', fontWeight: '700' }}>Header Link</kbd>
               </div>
             </div>
 
