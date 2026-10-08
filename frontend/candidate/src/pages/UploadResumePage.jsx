@@ -404,16 +404,6 @@ export default function UploadResumePage() {
       <section className="recent-uploads-section">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <h3 className="section-heading" style={{ margin: 0 }}>Recent Uploads</h3>
-          {hasResume && (
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <Link to="/profile" className="choose-btn" style={{ padding: '6px 12px', fontSize: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                <Edit3 size={13} /> Modify Profile
-              </Link>
-              <Link to="/report" className="choose-btn" style={{ padding: '6px 12px', fontSize: '12px', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', backgroundColor: '#0f172a' }}>
-                <Sparkles size={13} /> View Report
-              </Link>
-            </div>
-          )}
         </div>
         {hasResume ? (
           <div className="upload-file-card">
