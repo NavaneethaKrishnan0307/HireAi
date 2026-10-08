@@ -10,7 +10,7 @@ import {
   Building, 
   MapPin, 
   ChevronRight, 
-  Printer, 
+  Download, 
   FileText, 
   Code, 
   Layers, 
@@ -74,8 +74,141 @@ export default function ResumeAnalyzerPage() {
     }
   };
 
-  const handlePrint = () => {
-    window.print();
+  const handleExport = () => {
+    const reportElem = document.getElementById('analyzer-report-content');
+    if (!reportElem) {
+      window.print();
+      return;
+    }
+
+    // Isolate report into a dedicated iframe to export ONLY the report without UI chrome
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+    const candidateName = report?.candidate_name || 'Candidate';
+    const reportTitle = `Resume_Analyzer_Report_${candidateName.replace(/\s+/g, '_')}`;
+    const formattedDate = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+
+    // Capture all existing document stylesheets so typography, badges, and colors match exactly
+    const styles = Array.from(document.querySelectorAll('style, link[rel="stylesheet"]'))
+      .map(style => style.outerHTML)
+      .join('\n');
+
+    // Deep clone the report container and strip out interactive navigation & action buttons
+    const clone = reportElem.cloneNode(true);
+    clone.querySelectorAll('button, .choose-btn, a.choose-btn, .no-print').forEach(el => el.remove());
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <title>${reportTitle}</title>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+          ${styles}
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 12mm 14mm;
+            }
+            body {
+              background: #ffffff !important;
+              color: #0f172a !important;
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
+            }
+            .export-header {
+              border-bottom: 2px solid #2563eb;
+              padding-bottom: 12px;
+              margin-bottom: 20px;
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-end;
+            }
+            .export-header-title {
+              font-size: 20px;
+              font-weight: 800;
+              color: #1e3a8a;
+              margin: 0;
+            }
+            .export-header-sub {
+              font-size: 12px;
+              color: #64748b;
+              margin-top: 4px;
+            }
+            .export-header-meta {
+              font-size: 11px;
+              color: #64748b;
+              text-align: right;
+            }
+            .card {
+              box-shadow: none !important;
+              border: 1px solid #e2e8f0 !important;
+              page-break-inside: avoid;
+              break-inside: avoid;
+              margin-bottom: 16px !important;
+            }
+            /* Expand line inspection so full document annotations print */
+            div[style*="max-height"], div[style*="maxHeight"], div[style*="overflow-y"], div[style*="overflowY"] {
+              max-height: none !important;
+              overflow: visible !important;
+            }
+            button, .choose-btn, a.choose-btn {
+              display: none !important;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="export-header">
+            <div>
+              <div style="font-size: 10px; font-weight: 800; color: #2563eb; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px;">
+                HireAI Intelligent Hiring Platform • Official Career Audit
+              </div>
+              <h1 class="export-header-title">Resume Analyzer & ATS Audit Report</h1>
+              <div class="export-header-sub">Candidate: <strong>${candidateName}</strong></div>
+            </div>
+            <div class="export-header-meta">
+              <div>Audit Date: <strong>${formattedDate}</strong></div>
+              <div>System Status: <strong style="color: #059669;">Verified Authentic</strong></div>
+            </div>
+          </div>
+          <div class="export-content">
+            ${clone.innerHTML}
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      try {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+      } catch (e) {
+        console.error('Export print error:', e);
+      } finally {
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 1500);
+      }
+    }, 400);
   };
 
   const handleSyncProfileName = async (newName) => {
@@ -161,11 +294,12 @@ export default function ResumeAnalyzerPage() {
             <User size={16} /> Modify Profile
           </Link>
           <button 
-            onClick={handlePrint}
+            onClick={handleExport}
             className="choose-btn" 
             style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px', backgroundColor: '#0f172a' }}
+            title="Export Comprehensive Career Report as Clean PDF"
           >
-            <Printer size={16} /> Print / Export PDF
+            <Download size={16} /> Export Report
           </button>
         </div>
       </div>
@@ -177,7 +311,9 @@ export default function ResumeAnalyzerPage() {
         </div>
       )}
 
-      {/* Authenticity & Identity Verification Banner */}
+      {/* Report Printable Content Container (Isolated from App UI Chrome) */}
+      <div id="analyzer-report-content" className="analyzer-report-container">
+        {/* Authenticity & Identity Verification Banner */}
       {authVerif && (
         <div style={{ marginBottom: '20px' }}>
           {authVerif.name_mismatch && (
@@ -654,5 +790,6 @@ export default function ResumeAnalyzerPage() {
         )}
       </div>
     </div>
-  );
+  </div>
+);
 }

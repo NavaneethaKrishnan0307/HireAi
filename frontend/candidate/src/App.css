@@ -421,3 +421,47 @@
   border-radius: 6px;
   margin: 3px;
 }
+
+/* Print & Export Rules - Zero UI Chrome Leak */
+@media print {
+  /* Strictly suppress website chrome, navigation, headers, footers and action triggers */
+  .app-header,
+  .sidebar,
+  .sidebar-nav,
+  .nav-item,
+  .page-header-actions,
+  button,
+  .choose-btn,
+  a.choose-btn,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Reset layout container to standard 100% full-width page */
+  body, html, #root, .app-container, .main-wrapper, .content-area {
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    background: #ffffff !important;
+  }
+
+  .content-area {
+    padding: 12px !important;
+  }
+
+  /* Keep cards crisp with no drop shadows and prevent awkward page cuts */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #e2e8f0 !important;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    margin-bottom: 16px !important;
+  }
+
+  /* Color accuracy enforcement for badges and score meters */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
