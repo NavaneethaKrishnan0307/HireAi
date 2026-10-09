@@ -125,6 +125,27 @@ export default function MyUploadsPage() {
     }
   };
 
+  const handleDownloadResume = async () => {
+    try {
+      const blob = await CandidateAPI.getResumeFileBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename || 'resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (err) {
+      console.warn('Direct resume stream download failed:', err);
+      if (profile?.resume_url && profile.resume_url.startsWith('http')) {
+        window.open(profile.resume_url, '_blank');
+      } else {
+        alert('Failed to download resume file.');
+      }
+    }
+  };
+
   const handlePreviewDocument = async (doc) => {
     setPreviewItem({
       type: 'document',
@@ -448,11 +469,9 @@ export default function MyUploadsPage() {
                     <span>Preview Resume</span>
                   </button>
 
-                  <a
-                    href="http://localhost:8000/api/candidate/resume/file"
-                    target="_blank"
-                    rel="noreferrer"
-                    download={filename}
+                  <button
+                    type="button"
+                    onClick={handleDownloadResume}
                     style={{
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -464,12 +483,12 @@ export default function MyUploadsPage() {
                       borderRadius: '8px',
                       fontSize: '13px',
                       fontWeight: '600',
-                      textDecoration: 'none'
+                      cursor: 'pointer'
                     }}
                   >
                     <Download size={15} />
                     <span>Download</span>
-                  </a>
+                  </button>
                 </div>
               </div>
 

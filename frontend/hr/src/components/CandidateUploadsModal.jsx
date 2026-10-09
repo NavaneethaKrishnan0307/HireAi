@@ -101,8 +101,72 @@ export default function CandidateUploadsModal({ candidateId, candidateName, onCl
     }
   };
 
-  const handleDownloadFile = async (url, filename) => {
+  const handleDownloadResume = async () => {
     try {
+      setPreviewLoading(true);
+      const blob = await HRAPI.getCandidateResumeBlob(candidateId);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = cand.resume_filename || 'resume.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (err) {
+      console.warn('Direct resume stream download failed, attempting fallback:', err);
+      if (cand.resume_url && cand.resume_url.startsWith('http')) {
+        const a = document.createElement('a');
+        a.href = cand.resume_url;
+        a.download = cand.resume_filename || 'resume.pdf';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      } else {
+        alert('Failed to download resume file: ' + (err.message || 'unknown error'));
+      }
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleDownloadDocument = async (doc) => {
+    try {
+      if (doc.id) {
+        setPreviewLoading(true);
+        const blob = await HRAPI.getCandidateDocumentBlob(candidateId, doc.id);
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = doc.file_name || 'document.pdf';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+        return;
+      }
+    } catch (err) {
+      console.warn('Doc stream download failed, attempting fallback:', err);
+    } finally {
+      setPreviewLoading(false);
+    }
+    if (doc.file_url && doc.file_url.startsWith('http')) {
+      const a = document.createElement('a');
+      a.href = doc.file_url;
+      a.download = doc.file_name || 'document.pdf';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }
+  };
+
+  const handleDownloadFile = async (url, filename) => {
+    if (!url || url.startsWith('supabase://') || url.includes('/resume/file') || filename === cand.resume_filename) {
+      return handleDownloadResume();
+    }
+    if (url.startsWith('http')) {
       const a = document.createElement('a');
       a.href = url;
       a.download = filename || 'document.pdf';
@@ -110,8 +174,6 @@ export default function CandidateUploadsModal({ candidateId, candidateName, onCl
       document.body.appendChild(a);
       a.click();
       a.remove();
-    } catch (e) {
-      window.open(url, '_blank');
     }
   };
 
@@ -304,13 +366,10 @@ export default function CandidateUploadsModal({ candidateId, candidateName, onCl
                         >
                           <Eye size={14} /> Preview Resume
                         </button>
-                        {cand.resume_url && (
+                        {hasResume && (
                           <button
                             type="button"
-                            onClick={() => handleDownloadFile(
-                              cand.resume_url.startsWith('http') ? cand.resume_url : `http://localhost:8000${cand.resume_url}`,
-                              cand.resume_filename || 'resume.pdf'
-                            )}
+                            onClick={handleDownloadResume}
                             style={{
                               display: 'flex',
                               alignItems: 'center',
@@ -425,10 +484,7 @@ export default function CandidateUploadsModal({ candidateId, candidateName, onCl
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDownloadFile(
-                                doc.file_url?.startsWith('http') ? doc.file_url : `http://localhost:8000${doc.file_url || ''}`,
-                                doc.file_name
-                              )}
+                              onClick={() => handleDownloadDocument(doc)}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -511,10 +567,7 @@ export default function CandidateUploadsModal({ candidateId, candidateName, onCl
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleDownloadFile(
-                                doc.file_url?.startsWith('http') ? doc.file_url : `http://localhost:8000${doc.file_url || ''}`,
-                                doc.file_name
-                              )}
+                              onClick={() => handleDownloadDocument(doc)}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',

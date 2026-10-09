@@ -209,6 +209,7 @@ export default function ResumeReportModal({ candidateId, candidateName, onClose 
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div 
+        id="hr-analyzer-report-printable"
         className="modal-card print-area" 
         style={{ maxWidth: '880px', maxHeight: '92vh', overflowY: 'auto' }} 
         onClick={(e) => e.stopPropagation()}
