@@ -54,9 +54,36 @@ export default function KanbanPipelinePage() {
   const [activeScheduleCandidate, setActiveScheduleCandidate] = useState(null);
   const [activeUploadsCandidate, setActiveUploadsCandidate] = useState(null);
 
+  // ⚡ Instantaneous in-memory filtering (0 ms) for smooth lag-free requisition switching
+  const displayedPipelineData = React.useMemo(() => {
+    if (!pipelineData) return {};
+    let data = pipelineData;
+    if (selectedJobId) {
+      data = {};
+      for (const [stage, items] of Object.entries(pipelineData)) {
+        data[stage] = (items || []).filter(item => String(item.job_id) === String(selectedJobId));
+      }
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      const searchFiltered = {};
+      for (const [stage, items] of Object.entries(data)) {
+        searchFiltered[stage] = (items || []).filter(item => {
+          const cand = item.candidate || {};
+          const name = String(cand.full_name || '').toLowerCase();
+          const email = String(cand.email || '').toLowerCase();
+          const title = String(item.job_title || '').toLowerCase();
+          return name.includes(q) || email.includes(q) || title.includes(q);
+        });
+      }
+      return searchFiltered;
+    }
+    return data;
+  }, [pipelineData, selectedJobId, searchQuery]);
+
   useEffect(() => {
-    loadPipeline(!pipelineData);
-  }, [selectedJobId]);
+    loadPipeline(true);
+  }, []);
 
   const showToast = (message, type = 'success') => {
     setToastMessage({ message, type });
@@ -72,7 +99,8 @@ export default function KanbanPipelinePage() {
       } else {
         setIsSyncing(true);
       }
-      const data = await HRAPI.getPipeline(selectedJobId || null);
+      // Always fetch all requisitions for instant client-side switching
+      const data = await HRAPI.getPipeline(null);
       setPipelineData(data.pipeline_stages || {});
       setJobs(data.jobs || []);
     } catch (err) {
@@ -335,7 +363,7 @@ export default function KanbanPipelinePage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, minmax(240px, 1fr))', gap: '14px', overflowX: 'auto', alignItems: 'start', paddingBottom: '20px' }}>
           {STAGE_CONFIG.map((col) => {
-            const items = (pipelineData && pipelineData[col.id]) || [];
+            const items = (displayedPipelineData && displayedPipelineData[col.id]) || [];
             return (
               <div 
                 key={col.id} 
