@@ -198,10 +198,10 @@ export const HRAPI = {
     let url = `${API_BASE}/api/hr/jobs/${jobId}/applicants`;
     if (weights) {
       const params = new URLSearchParams({
-        weight_skills: weights.skills || 0.50,
-        weight_experience: weights.experience || 0.25,
-        weight_education: weights.education || 0.15,
-        weight_additional: weights.additional || 0.10
+        weight_skills: (weights.skills !== undefined && weights.skills !== null) ? weights.skills : 0.50,
+        weight_experience: (weights.experience !== undefined && weights.experience !== null) ? weights.experience : 0.25,
+        weight_education: (weights.education !== undefined && weights.education !== null) ? weights.education : 0.15,
+        weight_additional: (weights.additional !== undefined && weights.additional !== null) ? weights.additional : 0.10
       });
       url += `?${params.toString()}`;
     }

@@ -64,7 +64,17 @@ export default function CandidateMatchesPage() {
         additional: weights.additional / 100
       };
       const data = await HRAPI.getJobApplicants(jobId, normalizedWeights);
-      setApplicants(data);
+      const sorted = Array.isArray(data) ? [...data].sort((a, b) => {
+        const scoreA = Number(a.match_score ?? a.score ?? 0);
+        const scoreB = Number(b.match_score ?? b.score ?? 0);
+        if (Math.abs(scoreB - scoreA) > 0.0001) {
+          return scoreB - scoreA;
+        }
+        const expA = Number(a.years_of_experience ?? 0);
+        const expB = Number(b.years_of_experience ?? 0);
+        return expB - expA;
+      }) : [];
+      setApplicants(sorted);
     } catch (err) {
       console.error(err);
     } finally {

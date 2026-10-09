@@ -529,8 +529,14 @@ def get_job_applicants(
 
         applicant_list.append(cand_with_user)
 
-    # Sort applicants by match score descending
-    applicant_list.sort(key=lambda x: x.get("match_score", 0), reverse=True)
+    # Sort applicants by match score descending, then by years of experience descending
+    applicant_list.sort(
+        key=lambda x: (
+            float(x.get("match_score", 0) or 0),
+            float(x.get("years_of_experience", 0) or 0)
+        ),
+        reverse=True
+    )
     return applicant_list
 
 
@@ -930,7 +936,13 @@ def get_hr_pipeline(
         })
 
     for k in full_stages:
-        full_stages[k].sort(key=lambda x: x["match_score"], reverse=True)
+        full_stages[k].sort(
+            key=lambda x: (
+                float(x.get("match_score", 0) or 0),
+                float((x.get("candidate") or {}).get("years_of_experience", 0) or 0)
+            ),
+            reverse=True
+        )
 
     full_result = {
         "company": hr_company,
