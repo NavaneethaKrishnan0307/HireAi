@@ -249,5 +249,29 @@
     "stage_details": {},
     "candidate_id": "66103575-04f0-423b-96af-b555435e2365",
     "job_id": "60d30ba4-b9ec-48fa-9f8e-255fea0eb492"
+  },
+  "6aa7ff1c-2e92-469d-b200-4cecbcfc028e": {
+    "stage": "applied",
+    "stage_details": {},
+    "candidate_id": "66103575-04f0-423b-96af-b555435e2365",
+    "job_id": "bae658e3-8d45-4944-a711-4c85ded25472"
+  },
+  "66103575-04f0-423b-96af-b555435e2365:bae658e3-8d45-4944-a711-4c85ded25472": {
+    "stage": "applied",
+    "stage_details": {},
+    "candidate_id": "66103575-04f0-423b-96af-b555435e2365",
+    "job_id": "bae658e3-8d45-4944-a711-4c85ded25472"
+  },
+  "a38aa71c-4e9e-416d-a5d7-05692b609996": {
+    "stage": "applied",
+    "stage_details": {},
+    "candidate_id": "66103575-04f0-423b-96af-b555435e2365",
+    "job_id": "55555555-5555-5555-5555-555555555553"
+  },
+  "66103575-04f0-423b-96af-b555435e2365:55555555-5555-5555-5555-555555555553": {
+    "stage": "applied",
+    "stage_details": {},
+    "candidate_id": "66103575-04f0-423b-96af-b555435e2365",
+    "job_id": "55555555-5555-5555-5555-555555555553"
   }
 }

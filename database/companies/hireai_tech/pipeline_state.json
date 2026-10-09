@@ -1,1 +1,20 @@
-{}
+{
+  "eb301a17-79fa-4252-a462-54062bd6180f": {
+    "id": "eb301a17-79fa-4252-a462-54062bd6180f",
+    "status": "shortlisted",
+    "stage": "shortlisted",
+    "stage_details": {},
+    "candidate_id": "c3a3a3a3-3333-4333-a333-333333333333",
+    "job_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "applied_at": "2026-10-06T08:51:32.300614+00:00"
+  },
+  "c3a3a3a3-3333-4333-a333-333333333333:a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d": {
+    "id": "eb301a17-79fa-4252-a462-54062bd6180f",
+    "status": "shortlisted",
+    "stage": "shortlisted",
+    "stage_details": {},
+    "candidate_id": "c3a3a3a3-3333-4333-a333-333333333333",
+    "job_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "applied_at": "2026-10-06T08:51:32.300614+00:00"
+  }
+}

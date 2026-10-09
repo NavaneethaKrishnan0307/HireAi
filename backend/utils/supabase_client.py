@@ -143,28 +143,112 @@ class MockSupabaseClient:
                 if isinstance(data, dict) and "users" in data and "jobs" in data:
                     self.store = data
                     logger.info("Loaded persistent mock database from %s", self.db_file)
-                    self._ensure_sam_and_ram_seeded()
+                    self._ensure_all_demo_accounts_seeded()
                     self._save_to_disk()
                     return
             except Exception as e:
                 logger.warning("Failed to load mock DB from %s: %s. Re-seeding.", self.db_file, e)
 
         self._seed_sample_data()
-        self._ensure_sam_and_ram_seeded()
+        self._ensure_all_demo_accounts_seeded()
         self._save_to_disk()
 
     def _ensure_sam_and_ram_seeded(self):
-        user_emails = {u.get("email") for u in self.store.get("users", [])}
-        if "sam@example.com" not in user_emails:
-            self.store.setdefault("users", []).append({
+        self._ensure_all_demo_accounts_seeded()
+
+    def _ensure_all_demo_accounts_seeded(self):
+        # SHA-256 hash for password123
+        std_pw_hash = "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f"
+
+        users = self.store.setdefault("users", [])
+        hr_users = self.store.setdefault("hr_users", [])
+        candidates = self.store.setdefault("candidates", [])
+
+        user_by_email = {u.get("email"): u for u in users}
+
+        # 1. Multi-Company HR Recruiter Accounts
+        hr_seed_specs = [
+            {
+                "id": "f268eb66-5cd1-4dd3-a362-cde064dad464",
+                "email": "ghr@gmail.com",
+                "full_name": "Tim",
+                "company_name": "Google",
+                "department": "Site Reliability Engineering",
+                "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80"
+            },
+            {
+                "id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+                "email": "hr@techcorp.com",
+                "full_name": "Sarah Jenkins",
+                "company_name": "TechCorp Solutions",
+                "department": "Engineering Recruitment",
+                "avatar_url": "https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150&auto=format&fit=crop&q=80"
+            },
+            {
+                "id": "79ce8265-49b3-410b-b636-77c4a7c2a37f",
+                "email": "azhr@gmail.com",
+                "full_name": "TOM",
+                "company_name": "AZENTURE",
+                "department": "Cloud & AI Solutions",
+                "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
+            },
+            {
+                "id": "559b23f0-0603-49e9-8e82-423f4897b6d3",
+                "email": "saranhr@gmail.com",
+                "full_name": "Saran HR",
+                "company_name": "HireAI Tech",
+                "department": "Talent Acquisition",
+                "avatar_url": "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80"
+            }
+        ]
+
+        for spec in hr_seed_specs:
+            email = spec["email"]
+            if email in user_by_email:
+                u = user_by_email[email]
+                # Fix corrupted or non-standard hash
+                if u.get("password_hash") != std_pw_hash and not u.get("password_hash", "").startswith("$2b$"):
+                    u["password_hash"] = std_pw_hash
+                u["full_name"] = spec["full_name"]
+                u["role"] = "hr"
+            else:
+                new_u = {
+                    "id": spec["id"],
+                    "email": email,
+                    "password_hash": std_pw_hash,
+                    "role": "hr",
+                    "full_name": spec["full_name"],
+                    "avatar_url": spec["avatar_url"]
+                }
+                users.append(new_u)
+                user_by_email[email] = new_u
+
+            # Ensure hr_users entry
+            hr_record = next((h for h in hr_users if h.get("user_id") == spec["id"] or h.get("company_name", "").lower() == spec["company_name"].lower()), None)
+            if hr_record:
+                hr_record["company_name"] = spec["company_name"]
+                hr_record["department"] = spec["department"]
+            else:
+                hr_users.append({
+                    "id": f"hr-prof-{spec['company_name'].lower().replace(' ', '-')}",
+                    "user_id": spec["id"],
+                    "company_name": spec["company_name"],
+                    "department": spec["department"]
+                })
+
+        # 2. Sam and Ram Candidates
+        if "sam@example.com" not in user_by_email:
+            sam_u = {
                 "id": "9655cd40-8424-4204-94ba-77a433bfe924",
                 "email": "sam@example.com",
-                "password_hash": "$2b$12$K.zT7rZfN7bS09h7Z8q2UOn5Kmsr5tGk8RkH0O1F8e.xT9i1s4YWW",
+                "password_hash": std_pw_hash,
                 "role": "candidate",
                 "full_name": "Sam",
                 "avatar_url": "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"
-            })
-            self.store.setdefault("candidates", []).append({
+            }
+            users.append(sam_u)
+            user_by_email["sam@example.com"] = sam_u
+            candidates.append({
                 "id": "8f53fa1e-997e-4959-bde1-f84b718296b9",
                 "user_id": "9655cd40-8424-4204-94ba-77a433bfe924",
                 "phone": "+91 9887766551",
@@ -177,16 +261,24 @@ class MockSupabaseClient:
                 "resume_url": None,
                 "parsed_skills": ["Python", "FastAPI", "React", "SQL"]
             })
-        if "ram@example.com" not in user_emails:
-            self.store.setdefault("users", []).append({
+        else:
+            # Fix hash if corrupted
+            u = user_by_email["sam@example.com"]
+            if u.get("password_hash") != std_pw_hash and not u.get("password_hash", "").startswith("$2b$"):
+                u["password_hash"] = std_pw_hash
+
+        if "ram@example.com" not in user_by_email:
+            ram_u = {
                 "id": "9655cd40-8424-4204-94ba-77a433bfe925",
                 "email": "ram@example.com",
-                "password_hash": "$2b$12$K.zT7rZfN7bS09h7Z8q2UOn5Kmsr5tGk8RkH0O1F8e.xT9i1s4YWW",
+                "password_hash": std_pw_hash,
                 "role": "candidate",
                 "full_name": "Ram",
                 "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80"
-            })
-            self.store.setdefault("candidates", []).append({
+            }
+            users.append(ram_u)
+            user_by_email["ram@example.com"] = ram_u
+            candidates.append({
                 "id": "8f53fa1e-997e-4959-bde1-f84b718296ba",
                 "user_id": "9655cd40-8424-4204-94ba-77a433bfe925",
                 "phone": "+91 9887766552",
@@ -199,6 +291,11 @@ class MockSupabaseClient:
                 "resume_url": None,
                 "parsed_skills": ["React", "JavaScript", "HTML", "CSS", "TailwindCSS"]
             })
+        else:
+            # Fix hash if corrupted
+            u = user_by_email["ram@example.com"]
+            if u.get("password_hash") != std_pw_hash and not u.get("password_hash", "").startswith("$2b$"):
+                u["password_hash"] = std_pw_hash
 
     def table(self, table_name: str):
         return MockQueryBuilder(table_name, self.store, client=self)

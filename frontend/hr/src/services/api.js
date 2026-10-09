@@ -18,8 +18,9 @@ export const HRAPI = {
     if (!res.ok) throw new Error(data.detail || 'Login failed');
     const heuristic = cleanEmail.includes('ghr@') || cleanEmail.includes('google') ? 'Google' :
                       cleanEmail.includes('azhr@') || cleanEmail.includes('azenture') ? 'AZENTURE' :
+                      cleanEmail.includes('saranhr@') || cleanEmail.includes('hireai') ? 'HireAI Tech' :
                       cleanEmail.includes('techcorp') || cleanEmail.includes('sarah') ? 'TechCorp Solutions' :
-                      'Google';
+                      'TechCorp Solutions';
     const company = data.user?.company_name || data.role_profile?.company_name || heuristic;
     localStorage.setItem('hr_token', data.token);
     localStorage.setItem('hr_user', JSON.stringify({ ...data.user, company_name: company }));

@@ -66,7 +66,7 @@
     },
     {
       "email": "raja@gmail.com",
-      "password_hash": "b45bc887692c7d9bae3f114deb7f28f105049f554c32a6e3c68aea8c6ecd71d5",
+      "password_hash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
       "role": "candidate",
       "full_name": "RAJA",
       "avatar_url": null,
@@ -83,7 +83,7 @@
     {
       "id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a77",
       "email": "azhr@gmail.com",
-      "password_hash": ".zT7rZfN7bS09h7Z8q2UOn5Kmsr5tGk8RkH0O1F8e.xT9i1s4YWW",
+      "password_hash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
       "role": "hr",
       "full_name": "TOM",
       "avatar_url": null
@@ -91,7 +91,7 @@
     {
       "id": "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a88",
       "email": "ghr@gmail.com",
-      "password_hash": ".zT7rZfN7bS09h7Z8q2UOn5Kmsr5tGk8RkH0O1F8e.xT9i1s4YWW",
+      "password_hash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f",
       "role": "hr",
       "full_name": "Tim",
       "avatar_url": null

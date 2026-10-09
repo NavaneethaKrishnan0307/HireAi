@@ -62,6 +62,8 @@ def _get_hr_company(user: Dict[str, Any], supabase) -> str:
             return "Google"
         if c.lower() == "azenture":
             return "AZENTURE"
+        if c.lower() in ["hireai tech", "hireai", "hireaitech"]:
+            return "HireAI Tech"
         return c
 
     # 2. Heuristic check based on email
@@ -70,6 +72,8 @@ def _get_hr_company(user: Dict[str, Any], supabase) -> str:
         return "Google"
     if "azhr@" in email or "azenture" in email:
         return "AZENTURE"
+    if "saranhr@" in email or "hireai" in email:
+        return "HireAI Tech"
 
     profile = _get_hr_profile(user.get("sub", ""), supabase)
     comp = profile.get("company_name") or user.get("company_name") or "TechCorp Solutions"
@@ -78,6 +82,8 @@ def _get_hr_company(user: Dict[str, Any], supabase) -> str:
         return "Google"
     if c_str.lower() == "azenture":
         return "AZENTURE"
+    if c_str.lower() in ["hireai tech", "hireai", "hireaitech"]:
+        return "HireAI Tech"
     return c_str
 
 

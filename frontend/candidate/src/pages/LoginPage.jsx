@@ -191,8 +191,22 @@ export default function LoginPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <button
               type="button"
-              onClick={() => { setEmail('joe@example.com'); setPassword('password123'); }}
+              onClick={() => { setEmail('sam@example.com'); setPassword('password123'); }}
               style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '600', color: '#1d4ed8', backgroundColor: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
+            >
+              👤 Fill: <strong>Sam</strong> (sam@example.com / password123)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('ram@example.com'); setPassword('password123'); }}
+              style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '600', color: '#047857', backgroundColor: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
+            >
+              👤 Fill: <strong>Ram</strong> (ram@example.com / password123)
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('joe@example.com'); setPassword('password123'); }}
+              style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '600', color: '#475569', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
             >
               👤 Fill: <strong>Joe</strong> (joe@example.com / password123)
             </button>
@@ -201,7 +215,7 @@ export default function LoginPage() {
               onClick={() => { setEmail('rahul.sharma@email.com'); setPassword('password123'); }}
               style={{ padding: '6px 10px', fontSize: '12px', fontWeight: '600', color: '#475569', backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '6px', cursor: 'pointer', textAlign: 'left' }}
             >
-              👤 Fill: <strong>Rahul Sharma</strong> (rahul.sharma@email.com)
+              👤 Fill: <strong>Rahul Sharma</strong> (rahul.sharma@email.com / password123)
             </button>
           </div>
         </div>
