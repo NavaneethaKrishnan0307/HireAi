@@ -26,6 +26,7 @@ import {
 import { THEMES, getStoredTheme, applyTheme } from '../utils/themeManager';
 import { LANGUAGES, getStoredLanguage, setStoredLanguage, t } from '../utils/i18n';
 import { isSoundEnabled, setSoundEnabled, playChime, playToggle } from '../utils/soundEffects';
+import { HRAPI } from '../services/api';
 
 export default function ProfileDropdown({ user, companyName, onLogout }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -131,6 +132,21 @@ export default function ProfileDropdown({ user, companyName, onLogout }) {
   };
 
   const statusInfo = getStatusLabel();
+
+  const handleSignOut = () => {
+    playChime();
+    setIsOpen(false);
+    if (typeof onLogout === 'function') {
+      try {
+        onLogout();
+      } catch (err) {
+        console.error('Logout callback error:', err);
+      }
+    }
+    HRAPI.logout();
+    sessionStorage.clear();
+    window.location.href = '/login';
+  };
 
   return (
     <div className="profile-dropdown-container" ref={dropdownRef} style={{ position: 'relative' }}>
@@ -574,11 +590,7 @@ export default function ProfileDropdown({ user, companyName, onLogout }) {
           <div style={{ padding: '6px 0 0 0' }}>
             <button
               type="button"
-              onClick={() => {
-                playChime();
-                setIsOpen(false);
-                onLogout();
-              }}
+              onClick={handleSignOut}
               className="dropdown-item signout-item"
               style={{
                 width: '100%',
